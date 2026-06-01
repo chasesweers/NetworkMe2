@@ -2,39 +2,24 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSelector, useDispatch } from 'react-redux'
+import { useSelector } from 'react-redux'
 import { selectConnections } from '@/stores/connectionSlice'
-import { selectRelationships, selectAllTypes } from '@/stores/relationshipSlice'
-import { personKey, initials, avatarHue } from '@/lib/data'
+import { selectAllRelationships, selectAllTypes } from '@/stores/relationshipSlice'
+import { personKey, initials } from '@/lib/data'
+import { buildEdges, buildNodes, physicsStep, type GraphNode, type GraphEdge } from '@/lib/graphData'
 import Link from 'next/link'
 
-interface Node {
-  key: string
-  label: string
-  x: number
-  y: number
-  vx: number
-  vy: number
-  hue: number
-}
-
-interface Edge {
-  a: string
-  b: string
-  color: string
-}
+// Re-export types under local aliases for internal use
+type Node = GraphNode
+type Edge = GraphEdge
 
 const NODE_R = 22
-const REPEL = 4000
-const ATTRACT = 0.04
-const DAMPING = 0.85
-const CENTER_PULL = 0.005
 
 export function GraphView() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
   const connections = useSelector(selectConnections)
-  const relationships = useSelector(selectRelationships)
+  const relationships = useSelector(selectAllRelationships)
   const allTypes = useSelector(selectAllTypes)
 
   const nodesRef = useRef<Node[]>([])
@@ -48,31 +33,17 @@ export function GraphView() {
   const [filterTypeId, setFilterTypeId] = useState<string>('all')
   const [showLabels, setShowLabels] = useState(true)
 
+  // Rebuild nodes whenever connections change
   useEffect(() => {
     const W = canvasRef.current?.width ?? 800
     const H = canvasRef.current?.height ?? 600
+    nodesRef.current = buildNodes(connections, nodesRef.current, W, H)
+  }, [connections])
 
-    nodesRef.current = connections.map((c) => {
-      const key = personKey(c)
-      const existing = nodesRef.current.find((n) => n.key === key)
-      return {
-        key,
-        label: c.name,
-        x: existing?.x ?? W / 2 + (Math.random() - 0.5) * 300,
-        y: existing?.y ?? H / 2 + (Math.random() - 0.5) * 300,
-        vx: existing?.vx ?? 0,
-        vy: existing?.vy ?? 0,
-        hue: avatarHue(key),
-      }
-    })
-
-    const activeRels = filterTypeId === 'all' ? relationships : relationships.filter((r) => r.typeId === filterTypeId)
-    edgesRef.current = activeRels.map((r) => ({
-      a: r.a,
-      b: r.b,
-      color: allTypes.find((t) => t.id === r.typeId)?.color ?? '#6366f1',
-    }))
-  }, [connections, relationships, filterTypeId, allTypes])
+  // Rebuild edges whenever relationships, filter, or types change
+  useEffect(() => {
+    edgesRef.current = buildEdges(relationships, filterTypeId, allTypes)
+  }, [relationships, filterTypeId, allTypes])
 
   const tick = useCallback(() => {
     const canvas = canvasRef.current
@@ -80,7 +51,6 @@ export function GraphView() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    const nodes = nodesRef.current
     const edges = edgesRef.current
     const { x: tx, y: ty, scale } = transformRef.current
     const W = canvas.width
@@ -88,42 +58,9 @@ export function GraphView() {
     const cx = W / 2
     const cy = H / 2
 
-    for (let i = 0; i < nodes.length; i++) {
-      const a = nodes[i]
-      a.vx += (cx - a.x) * CENTER_PULL
-      a.vy += (cy - a.y) * CENTER_PULL
-      for (let j = i + 1; j < nodes.length; j++) {
-        const b = nodes[j]
-        const dx = a.x - b.x
-        const dy = a.y - b.y
-        const dist2 = dx * dx + dy * dy + 1
-        const force = REPEL / dist2
-        const d = Math.sqrt(dist2)
-        a.vx += (dx / d) * force
-        a.vy += (dy / d) * force
-        b.vx -= (dx / d) * force
-        b.vy -= (dy / d) * force
-      }
-    }
-
-    for (const edge of edges) {
-      const a = nodes.find((n) => n.key === edge.a)
-      const b = nodes.find((n) => n.key === edge.b)
-      if (!a || !b) continue
-      const dx = b.x - a.x
-      const dy = b.y - a.y
-      a.vx += dx * ATTRACT
-      a.vy += dy * ATTRACT
-      b.vx -= dx * ATTRACT
-      b.vy -= dy * ATTRACT
-    }
-
-    for (const n of nodes) {
-      n.vx *= DAMPING
-      n.vy *= DAMPING
-      n.x += n.vx
-      n.y += n.vy
-    }
+    // Advance physics using the stable, degree-normalised step
+    nodesRef.current = physicsStep(nodesRef.current, edges, cx, cy)
+    const nodes = nodesRef.current
 
     ctx.clearRect(0, 0, W, H)
     ctx.save()

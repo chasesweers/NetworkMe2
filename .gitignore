@@ -12,6 +12,14 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
+
+# specs, tests, ADRs, and Claude instructions are local-only working documents
+*.feature
+/tests/
+/docs/adr/
+CLAUDE.md
 
 # next.js
 /.next/
