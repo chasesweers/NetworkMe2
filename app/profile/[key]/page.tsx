@@ -1,6 +1,13 @@
 import { ProfileView } from '@/components/profile/ProfileView'
 
-export default async function ProfilePage({ params }: { params: Promise<{ key: string }> }) {
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ key: string }>
+  searchParams: Promise<{ from?: string }>
+}) {
   const { key } = await params
-  return <ProfileView personKey={key} />
+  const { from } = await searchParams
+  return <ProfileView personKey={key} from={from} />
 }

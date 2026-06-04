@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
 import { selectConnections } from '@/stores/connectionSlice'
 import { selectAllRelationships, selectAllTypes } from '@/stores/relationshipSlice'
 import { personKey, initials } from '@/lib/data'
-import { buildEdges, buildNodes, physicsStep, type GraphNode, type GraphEdge } from '@/lib/graphData'
+import { buildEdges, buildNodes, physicsStep, shouldResetLayout, scaledCanvasSize, type GraphNode, type GraphEdge } from '@/lib/graphData'
 import Link from 'next/link'
 
 // Re-export types under local aliases for internal use
@@ -14,6 +14,13 @@ type Node = GraphNode
 type Edge = GraphEdge
 
 const NODE_R = 22
+
+/**
+ * Module-level position cache — survives component unmount/remount so node
+ * positions are preserved when the user navigates away and returns to /graph.
+ * Cleared when a new relationship is added or the user clicks "Refresh graph".
+ */
+let positionCache: Node[] = []
 
 export function GraphView() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -32,12 +39,22 @@ export function GraphView() {
   const lastPanRef = useRef({ x: 0, y: 0 })
   const [filterTypeId, setFilterTypeId] = useState<string>('all')
   const [showLabels, setShowLabels] = useState(true)
+  const prevRelCountRef = useRef(relationships.length)
 
-  // Rebuild nodes whenever connections change
+  // Reset layout when a new relationship is added
   useEffect(() => {
-    const W = canvasRef.current?.width ?? 800
-    const H = canvasRef.current?.height ?? 600
-    nodesRef.current = buildNodes(connections, nodesRef.current, W, H)
+    if (shouldResetLayout(prevRelCountRef.current, relationships.length)) {
+      positionCache = []
+    }
+    prevRelCountRef.current = relationships.length
+  }, [relationships.length])
+
+  // Rebuild nodes — uses positionCache so layout survives navigation.
+  // Always work in CSS pixels (offsetWidth/Height), not the scaled buffer dimensions.
+  useEffect(() => {
+    const W = canvasRef.current?.offsetWidth ?? 800
+    const H = canvasRef.current?.offsetHeight ?? 600
+    nodesRef.current = buildNodes(connections, positionCache, W, H)
   }, [connections])
 
   // Rebuild edges whenever relationships, filter, or types change
@@ -53,17 +70,25 @@ export function GraphView() {
 
     const edges = edgesRef.current
     const { x: tx, y: ty, scale } = transformRef.current
-    const W = canvas.width
-    const H = canvas.height
-    const cx = W / 2
-    const cy = H / 2
+    const dpr = window.devicePixelRatio || 1
+    // Buffer dimensions (physical pixels) — used only for clearRect
+    const bufW = canvas.width
+    const bufH = canvas.height
+    // CSS dimensions — all drawing coordinates and physics live in CSS pixel space
+    const cssW = canvas.offsetWidth
+    const cssH = canvas.offsetHeight
+    const cx = cssW / 2
+    const cy = cssH / 2
 
     // Advance physics using the stable, degree-normalised step
     nodesRef.current = physicsStep(nodesRef.current, edges, cx, cy)
     const nodes = nodesRef.current
 
-    ctx.clearRect(0, 0, W, H)
+    ctx.clearRect(0, 0, bufW, bufH)
     ctx.save()
+    // Scale up to physical pixels first, then apply user pan/zoom — keeps all
+    // node/edge coordinates in CSS pixel space for crisp rendering on HiDPI displays.
+    ctx.scale(dpr, dpr)
     ctx.translate(tx, ty)
     ctx.scale(scale, scale)
 
@@ -125,19 +150,30 @@ export function GraphView() {
 
   useEffect(() => {
     animFrameRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(animFrameRef.current)
+    return () => {
+      cancelAnimationFrame(animFrameRef.current)
+      // Persist positions so they survive navigation away and back
+      positionCache = [...nodesRef.current]
+    }
   }, [tick])
 
-  useEffect(() => {
+  // useLayoutEffect fires synchronously after the DOM is ready but BEFORE the
+  // browser paints — guaranteeing the canvas buffer is correctly sized at the
+  // correct physical resolution before the very first RAF tick draws anything.
+  // useEffect fires AFTER paint, so the first few frames would draw into the
+  // browser-default 300×150 buffer and appear blurry/zoomed on every refresh.
+  useLayoutEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ro = new ResizeObserver(() => {
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-    })
+    function resize() {
+      const dpr = window.devicePixelRatio || 1
+      const { bufW, bufH } = scaledCanvasSize(canvas!.offsetWidth, canvas!.offsetHeight, dpr)
+      canvas!.width  = bufW
+      canvas!.height = bufH
+    }
+    const ro = new ResizeObserver(resize)
     ro.observe(canvas)
-    canvas.width = canvas.offsetWidth
-    canvas.height = canvas.offsetHeight
+    resize()
     return () => ro.disconnect()
   }, [])
 
@@ -189,7 +225,7 @@ export function GraphView() {
 
   function onClick(e: React.MouseEvent<HTMLCanvasElement>) {
     const node = getNodeAt(e.clientX, e.clientY)
-    if (node) router.push(`/profile/${node.key}`)
+    if (node) router.push(`/profile/${node.key}?from=/graph`)
   }
 
   function onWheel(e: React.WheelEvent<HTMLCanvasElement>) {
@@ -269,6 +305,19 @@ export function GraphView() {
           className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
         >
           Reset zoom
+        </button>
+
+        <button
+          onClick={() => {
+            positionCache = []
+            const W = canvasRef.current?.offsetWidth ?? 800
+            const H = canvasRef.current?.offsetHeight ?? 600
+            nodesRef.current = buildNodes(connections, [], W, H)
+          }}
+          className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
+          aria-label="Refresh graph"
+        >
+          Refresh graph
         </button>
       </div>
     </div>

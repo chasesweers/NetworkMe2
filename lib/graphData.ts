@@ -17,6 +17,24 @@ export interface GraphEdge {
   color: string
 }
 
+/** Returns true only when a new relationship has been added (count grew). */
+export function shouldResetLayout(prevRelCount: number, nextRelCount: number): boolean {
+  return nextRelCount > prevRelCount
+}
+
+/**
+ * Returns the canvas buffer dimensions for a given CSS size and devicePixelRatio.
+ * Multiply CSS dimensions by dpr so the buffer has one physical pixel per screen pixel.
+ */
+export function scaledCanvasSize(
+  cssW: number,
+  cssH: number,
+  dpr: number,
+): { bufW: number; bufH: number } {
+  const d = Math.max(1, dpr)
+  return { bufW: cssW * d, bufH: cssH * d }
+}
+
 // ---------- Physics constants ----------
 export const REPEL       = 3500   // node-node repulsion strength
 export const ATTRACT     = 0.012  // spring attraction (per edge, per pixel of separation)

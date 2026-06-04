@@ -8,7 +8,7 @@ import { selectNote, setNote } from '@/stores/noteSlice'
 import { personKey, initials, avatarHue, formatDate } from '@/lib/data'
 import { RelationshipManager } from './RelationshipManager'
 
-export function ProfileView({ personKey: key }: { personKey: string }) {
+export function ProfileView({ personKey: key, from = '/search' }: { personKey: string; from?: string }) {
   const connections = useSelector(selectConnections)
   const connection = connections.find((c) => personKey(c) === key)
   const savedNote = useSelector(selectNote(key))
@@ -37,7 +37,7 @@ export function ProfileView({ personKey: key }: { personKey: string }) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-      <Link href="/search" className="text-sm text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 inline-block">
+      <Link href={from} className="text-sm text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 inline-block">
         ← Back
       </Link>
 
