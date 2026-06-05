@@ -33,15 +33,21 @@ export function loadPersistedState(): Partial<RootState> {
 
 export function saveState(state: RootState) {
   try {
-    localStorage.setItem(
-      PERSIST_KEY,
-      JSON.stringify({
-        connections: { connections: state.connections.connections, favorites: state.connections.favorites },
-        relationships: state.relationships,
-        notes: state.notes,
-        ui: state.ui,
-      })
-    )
+    const isAuthenticated = !!state.auth.token
+    // When authenticated, server is the source of truth — don't persist data slices to localStorage.
+    // Always persist ui preferences and the token itself (via nm_token key used by lib/api.ts).
+    const payload: Record<string, unknown> = { ui: state.ui }
+    if (!isAuthenticated) {
+      payload.connections = { connections: state.connections.connections, favorites: state.connections.favorites }
+      payload.relationships = state.relationships
+      payload.notes = state.notes
+    }
+    if (state.auth.token) {
+      localStorage.setItem('nm_token', state.auth.token)
+    } else {
+      localStorage.removeItem('nm_token')
+    }
+    localStorage.setItem(PERSIST_KEY, JSON.stringify(payload))
   } catch {
     // storage quota exceeded — ignore
   }

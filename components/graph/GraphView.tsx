@@ -39,6 +39,9 @@ export function GraphView() {
   const lastPanRef = useRef({ x: 0, y: 0 })
   const [filterTypeId, setFilterTypeId] = useState<string>('all')
   const [showLabels, setShowLabels] = useState(true)
+  const [pinnedKey, setPinnedKey] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const prevRelCountRef = useRef(relationships.length)
 
   // Reset layout when a new relationship is added
@@ -105,14 +108,15 @@ export function GraphView() {
       ctx.stroke()
     }
 
-    const connectedKeys = hoveredKey
-      ? new Set(edges.filter((e) => e.a === hoveredKey || e.b === hoveredKey).flatMap((e) => [e.a, e.b]))
+    const activeKey = hoveredKey ?? pinnedKey
+    const connectedKeys = activeKey
+      ? new Set(edges.filter((e) => e.a === activeKey || e.b === activeKey).flatMap((e) => [e.a, e.b]))
       : null
 
     for (const node of nodes) {
-      const isHovered = node.key === hoveredKey
+      const isHovered = node.key === activeKey
       const isConnected = connectedKeys?.has(node.key)
-      const dimmed = hoveredKey && !isHovered && !isConnected
+      const dimmed = activeKey && !isHovered && !isConnected
 
       ctx.beginPath()
       ctx.arc(node.x, node.y, NODE_R, 0, Math.PI * 2)
@@ -127,6 +131,17 @@ export function GraphView() {
         ctx.stroke()
       }
 
+      if (node.key === pinnedKey) {
+        const pulse = (Math.sin(Date.now() / 300) + 1) / 2  // 0–1
+        const radius = NODE_R + 6 + pulse * 6
+        const alpha = 0.4 + pulse * 0.6
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
+        ctx.strokeStyle = `rgba(250, 204, 21, ${alpha})`
+        ctx.lineWidth = 3
+        ctx.stroke()
+      }
+
       if (showLabels || isHovered) {
         ctx.fillStyle = 'white'
         ctx.font = `${isHovered ? 'bold ' : ''}12px system-ui`
@@ -136,7 +151,8 @@ export function GraphView() {
       }
 
       if ((showLabels && !dimmed) || isHovered) {
-        ctx.fillStyle = isHovered ? '#1e1b4b' : '#374151'
+        const isDark = document.documentElement.classList.contains('dark')
+        ctx.fillStyle = isHovered ? (isDark ? '#c7d2fe' : '#1e1b4b') : (isDark ? '#ffffff' : '#374151')
         ctx.font = `${isHovered ? 'bold ' : ''}11px system-ui`
         ctx.textAlign = 'center'
         ctx.textBaseline = 'top'
@@ -146,7 +162,7 @@ export function GraphView() {
 
     ctx.restore()
     animFrameRef.current = requestAnimationFrame(tick)
-  }, [hoveredKey, showLabels])
+  }, [hoveredKey, pinnedKey, showLabels])
 
   useEffect(() => {
     animFrameRef.current = requestAnimationFrame(tick)
@@ -243,6 +259,16 @@ export function GraphView() {
     }
   }
 
+  const suggestions = searchQuery.trim().length > 0
+    ? connections.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+    : []
+
+  function selectSuggestion(conn: (typeof connections)[0]) {
+    setPinnedKey(personKey(conn))
+    setSearchQuery(conn.name)
+    setShowSuggestions(false)
+  }
+
   if (connections.length === 0) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-3.5rem)] text-center">
@@ -266,6 +292,33 @@ export function GraphView() {
         onClick={onClick}
         onWheel={onWheel}
       />
+
+      <div className="absolute top-4 left-4 z-20 w-56">
+        <input
+          type="text"
+          placeholder="Search connections…"
+          value={searchQuery}
+          onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); if (!e.target.value) setPinnedKey(null) }}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+          className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400"
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <ul className="mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
+            {suggestions.map((c) => (
+              <li key={personKey(c)}>
+                <button
+                  onMouseDown={() => selectSuggestion(c)}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-800 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                >
+                  {c.name}
+                  {c.company && <span className="text-xs text-gray-400 ml-1">· {c.company}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {tooltip && (
         <div

@@ -1,6 +1,6 @@
 const BASE = process.env.NEXT_PUBLIC_API_BASE
 
-function getToken(): string | null {
+export function getToken(): string | null {
   if (typeof window === 'undefined') return null
   return localStorage.getItem('nm_token')
 }

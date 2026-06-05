@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useRef, useId } from 'react'
+import { useState, useRef, useId, useMemo } from 'react'
 import Link from 'next/link'
 import { useSelector, useDispatch } from 'react-redux'
 import { selectConnections } from '@/stores/connectionSlice'
 import {
   selectRelationshipsFor,
   selectAutoRelationshipsFor,
+  selectAllRelationships,
   selectAllTypes,
   addRelationship,
   removeRelationship,
@@ -23,7 +24,32 @@ export function RelationshipManager({ currentKey }: Props) {
   const connections = useSelector(selectConnections)
   const relationships = useSelector(selectRelationshipsFor(currentKey))
   const autoRels = useSelector(selectAutoRelationshipsFor(currentKey))
+  const allRelationships = useSelector(selectAllRelationships)
   const allTypes = useSelector(selectAllTypes)
+
+  // Recommend connections between people who are both related to currentKey
+  // but don't yet have a relationship with each other
+  const recommendations = useMemo(() => {
+    const relatedKeys = [
+      ...relationships.map((r) => (r.a === currentKey ? r.b : r.a)),
+      ...autoRels.map((r) => (r.a === currentKey ? r.b : r.a)),
+    ]
+    const existingPairs = new Set(allRelationships.map((r) => `${r.a}|${r.b}`))
+    const suggested: { keyA: string; keyB: string; nameA: string; nameB: string }[] = []
+    for (let i = 0; i < relatedKeys.length; i++) {
+      for (let j = i + 1; j < relatedKeys.length; j++) {
+        const [ka, kb] = [relatedKeys[i], relatedKeys[j]].sort()
+        if (!existingPairs.has(`${ka}|${kb}`)) {
+          const connA = connections.find((c) => personKey(c) === ka)
+          const connB = connections.find((c) => personKey(c) === kb)
+          if (connA && connB) {
+            suggested.push({ keyA: ka, keyB: kb, nameA: connA.name, nameB: connB.name })
+          }
+        }
+      }
+    }
+    return suggested.slice(0, 5)
+  }, [relationships, autoRels, allRelationships, connections, currentKey])
   const searchId = useId()
 
   const others = connections.filter((c) => personKey(c) !== currentKey)
@@ -166,6 +192,33 @@ export function RelationshipManager({ currentKey }: Props) {
                 >
                   Auto
                 </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Recommended connections */}
+      {recommendations.length > 0 && (
+        <div className="mb-5">
+          <p className="text-xs font-medium text-gray-400 dark:text-gray-600 mb-2">Suggested connections</p>
+          <ul className="space-y-2">
+            {recommendations.map(({ keyA, keyB, nameA, nameB }) => (
+              <li key={`${keyA}|${keyB}`} className="flex items-center gap-2 text-sm">
+                <span className="text-gray-400 dark:text-gray-600">✦</span>
+                <Link href={`/profile/${keyA}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                  {nameA}
+                </Link>
+                <span className="text-gray-400 dark:text-gray-600 text-xs">and</span>
+                <Link href={`/profile/${keyB}`} className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                  {nameB}
+                </Link>
+                <button
+                  onClick={() => dispatch(addRelationship({ a: keyA, b: keyB, typeId: allTypes[0]?.id ?? 'friend' }))}
+                  className="ml-auto text-xs px-2 py-0.5 rounded-md border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors shrink-0"
+                >
+                  Connect
+                </button>
               </li>
             ))}
           </ul>

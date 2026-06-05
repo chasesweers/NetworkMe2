@@ -1,10 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
 import { selectTheme, setTheme } from '@/stores/uiSlice'
 import { selectConnections } from '@/stores/connectionSlice'
+import { selectAuthUser, signOut } from '@/stores/authSlice'
+import { clearConnections } from '@/stores/connectionSlice'
 
 const TABS = [
   { href: '/import', label: 'Import' },
@@ -19,6 +21,15 @@ export function Nav() {
   const dispatch = useDispatch()
   const theme = useSelector(selectTheme)
   const count = useSelector(selectConnections).length
+  const user = useSelector(selectAuthUser)
+  const router = useRouter()
+
+  async function handleSignOut() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    dispatch(signOut())
+    dispatch(clearConnections())
+    router.push('/login')
+  }
 
   return (
     <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 sticky top-0 z-40">
@@ -46,6 +57,20 @@ export function Nav() {
         <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">
           {count > 0 ? `${count} connections` : ''}
         </span>
+
+        {user && (
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              {user.display_name ?? user.email}
+            </span>
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
 
         <select
           value={theme}

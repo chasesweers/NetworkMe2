@@ -1,6 +1,6 @@
 # ADR-006: Backend Deferred — IndexedDB First
 
-## Status: Accepted
+## Status: Superseded by ADR-010, ADR-011, ADR-012
 
 ## Context
 The original app called a separate Express backend for auth, data sync, and AI bio generation. Running two servers locally added friction. The correct backend architecture (Next.js API routes vs separate service, database choice) is not yet decided.

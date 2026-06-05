@@ -118,7 +118,7 @@ export function physicsStep(
 }
 
 export function buildEdges(
-  relationships: Relationship[],
+  relationships: Omit<Relationship, 'createdAt'>[],
   filterTypeId: string,
   allTypes: RelationshipType[],
 ): GraphEdge[] {

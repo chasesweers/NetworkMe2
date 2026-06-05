@@ -1,53 +1,78 @@
-const DB_NAME = 'networkme_db'
-const DB_VERSION = 1
-const STORE = 'networkdata'
+import Database from 'better-sqlite3'
+import path from 'path'
+import fs from 'fs'
 
-let _db: IDBDatabase | null = null
+const DB_PATH = path.join(process.cwd(), 'data', 'networkme.db')
 
-export async function openDB(): Promise<IDBDatabase> {
-  if (_db) return _db
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION)
-    req.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: 'key' })
-      }
-    }
-    req.onsuccess = (e) => {
-      _db = (e.target as IDBOpenDBRequest).result
-      resolve(_db)
-    }
-    req.onerror = () => reject(req.error)
-  })
+const globalForDb = globalThis as unknown as { db: Database.Database | undefined }
+
+function createDb(): Database.Database {
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true })
+
+  const db = new Database(DB_PATH)
+  db.pragma('journal_mode = WAL')
+  db.pragma('foreign_keys = ON')
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      email         TEXT    UNIQUE NOT NULL,
+      display_name  TEXT,
+      password_hash TEXT    NOT NULL,
+      created_at    INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS connections (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name       TEXT    NOT NULL,
+      title      TEXT    NOT NULL DEFAULT '',
+      company    TEXT    NOT NULL DEFAULT '',
+      connected  TEXT    NOT NULL DEFAULT '',
+      url        TEXT    NOT NULL DEFAULT '',
+      email      TEXT    NOT NULL DEFAULT '',
+      person_key TEXT    NOT NULL,
+      UNIQUE(user_id, person_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS favorites (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      person_key TEXT    NOT NULL,
+      PRIMARY KEY (user_id, person_key)
+    );
+
+    CREATE TABLE IF NOT EXISTS relationships (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      a          TEXT    NOT NULL,
+      b          TEXT    NOT NULL,
+      type_id    TEXT    NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      UNIQUE(user_id, a, b, type_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS custom_types (
+      id      TEXT    NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      label   TEXT    NOT NULL,
+      color   TEXT    NOT NULL,
+      PRIMARY KEY (user_id, id)
+    );
+
+    CREATE TABLE IF NOT EXISTS notes (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      person_key TEXT    NOT NULL,
+      text       TEXT    NOT NULL,
+      PRIMARY KEY (user_id, person_key)
+    );
+  `)
+
+  return db
 }
 
-export async function dbGet<T>(key: string): Promise<T | undefined> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly')
-    const req = tx.objectStore(STORE).get(key)
-    req.onsuccess = () => resolve(req.result?.value)
-    req.onerror = () => reject(req.error)
-  })
-}
-
-export async function dbSet<T>(key: string, value: T): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite')
-    tx.objectStore(STORE).put({ key, value })
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-}
-
-export async function dbDelete(key: string): Promise<void> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite')
-    tx.objectStore(STORE).delete(key)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
+export function getDb(): Database.Database {
+  if (!globalForDb.db) {
+    globalForDb.db = createDb()
+  }
+  return globalForDb.db
 }
