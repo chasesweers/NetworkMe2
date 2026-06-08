@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/requireAuth'
 import { getDb } from '@/lib/db'
+import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
 const syncBodySchema = z.object({
@@ -15,6 +16,7 @@ const syncBodySchema = z.object({
   relationships: z.array(z.object({ a: z.string(), b: z.string(), typeId: z.string(), createdAt: z.number() })),
   customTypes: z.array(z.object({ id: z.string(), label: z.string(), color: z.string() })),
   notes: z.record(z.string(), z.string()),
+  followUps: z.record(z.string(), z.object({ dueAt: z.string(), note: z.string() })).default({}),
 })
 
 export async function POST(req: NextRequest) {
@@ -25,6 +27,7 @@ export async function POST(req: NextRequest) {
   const parsed = syncBodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
 
+  try {
   const db = getDb()
   const uid = payload.userId
   const d = parsed.data
@@ -62,6 +65,11 @@ export async function POST(req: NextRequest) {
     const insertNote = db.prepare('INSERT INTO notes (user_id, person_key, text) VALUES (?, ?, ?)')
     for (const [key, text] of Object.entries(d.notes)) insertNote.run(uid, key, text)
 
+    // Follow-ups
+    db.prepare('DELETE FROM follow_ups WHERE user_id = ?').run(uid)
+    const insertFollowUp = db.prepare('INSERT INTO follow_ups (user_id, person_key, due_at, note) VALUES (?, ?, ?, ?)')
+    for (const [key, { dueAt, note }] of Object.entries(d.followUps)) insertFollowUp.run(uid, key, dueAt, note)
+
     // Snapshot
     db.prepare('INSERT INTO user_snapshots (user_id, payload) VALUES (?, ?)').run(uid, JSON.stringify(d))
 
@@ -75,12 +83,14 @@ export async function POST(req: NextRequest) {
   })()
 
   return NextResponse.json({ ok: true })
+  } catch (err) { return serverError(err) }
 }
 
 export async function GET(req: NextRequest) {
   let payload
   try { payload = await requireAuth(req) } catch (res) { return res as Response }
 
+  try {
   const db = getDb()
   const uid = payload.userId
 
@@ -102,6 +112,9 @@ export async function GET(req: NextRequest) {
   const notesRows = db.prepare('SELECT person_key, text FROM notes WHERE user_id = ?').all(uid) as { person_key: string; text: string }[]
   const notes = Object.fromEntries(notesRows.map(n => [n.person_key, n.text]))
 
+  const followUpRows = db.prepare('SELECT person_key, due_at, note FROM follow_ups WHERE user_id = ?').all(uid) as { person_key: string; due_at: string; note: string }[]
+  const followUps = Object.fromEntries(followUpRows.map(r => [r.person_key, { dueAt: r.due_at, note: r.note }]))
+
   return NextResponse.json({
     connections: connections.map(c => ({ name: c.name, title: c.title, company: c.company, connected: c.connected, url: c.url, email: c.email, personKey: c.person_key })),
     favorites,
@@ -109,5 +122,7 @@ export async function GET(req: NextRequest) {
     relationships: relationships.map(r => ({ a: r.a, b: r.b, typeId: r.type_id, createdAt: r.created_at })),
     customTypes: customTypes.map(t => ({ id: t.id, label: t.label, color: t.color, builtin: false })),
     notes,
+    followUps,
   })
+  } catch (err) { return serverError(err) }
 }

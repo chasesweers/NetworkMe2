@@ -83,7 +83,7 @@ export function RegisterForm() {
     dispatch(setUser(data.user))
     dispatch(setToken(data.token))
     dispatch(setGuest(false))
-    document.cookie = 'nm_guest=; path=/; max-age=0'
+    await fetch('/api/auth/guest', { method: 'DELETE' })
     router.push('/import')
   }
 
@@ -145,8 +145,8 @@ export function RegisterForm() {
         <div className="mt-4">
           <button
             type="button"
-            onClick={() => {
-              document.cookie = 'nm_guest=1; path=/; max-age=2592000'
+            onClick={async () => {
+              await fetch('/api/auth/guest', { method: 'POST' })
               dispatch(setGuest(true))
               router.push('/import')
             }}

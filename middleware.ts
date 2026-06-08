@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { decodeTokenPayload, COOKIE_NAME } from '@/lib/jwt-edge'
 
-const PROTECTED = ['/search', '/graph', '/profile', '/import']
+const PROTECTED = ['/search', '/graph', '/profile', '/import', '/reminders']
 const AUTH_ONLY = ['/login', '/register'] // redirect logged-in users away from these
 const ADMIN_ROUTES = ['/admin']
 
@@ -42,5 +42,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/search/:path*', '/graph/:path*', '/profile/:path*', '/import/:path*', '/login', '/register', '/admin/:path*', '/admin'],
+  matcher: ['/search/:path*', '/graph/:path*', '/profile/:path*', '/import/:path*', '/reminders/:path*', '/reminders', '/login', '/register', '/admin/:path*', '/admin'],
 }

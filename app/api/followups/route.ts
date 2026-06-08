@@ -6,7 +6,7 @@ import { getDb } from '@/lib/db'
 import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
-const bodySchema = z.array(z.string())
+const bodySchema = z.record(z.string(), z.object({ dueAt: z.string(), note: z.string() }))
 
 export async function PUT(req: NextRequest) {
   let payload
@@ -21,9 +21,11 @@ export async function PUT(req: NextRequest) {
     const uid = payload.userId
 
     db.transaction(() => {
-      db.prepare('DELETE FROM archives WHERE user_id = ?').run(uid)
-      const insert = db.prepare('INSERT OR IGNORE INTO archives (user_id, person_key) VALUES (?, ?)')
-      for (const key of parsed.data) insert.run(uid, key)
+      db.prepare('DELETE FROM follow_ups WHERE user_id = ?').run(uid)
+      const insert = db.prepare('INSERT INTO follow_ups (user_id, person_key, due_at, note) VALUES (?, ?, ?, ?)')
+      for (const [key, { dueAt, note }] of Object.entries(parsed.data)) {
+        insert.run(uid, key, dueAt, note)
+      }
     })()
 
     return NextResponse.json({ ok: true })

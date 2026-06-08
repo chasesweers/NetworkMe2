@@ -73,6 +73,14 @@ function createDb(): Database.Database {
       PRIMARY KEY (user_id, person_key)
     );
 
+    CREATE TABLE IF NOT EXISTS follow_ups (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      person_key TEXT    NOT NULL,
+      due_at     TEXT    NOT NULL,
+      note       TEXT    NOT NULL DEFAULT '',
+      PRIMARY KEY (user_id, person_key)
+    );
+
     CREATE TABLE IF NOT EXISTS shared_graphs (
       token      TEXT    PRIMARY KEY,
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

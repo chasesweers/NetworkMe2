@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import { connectionSlice } from './connectionSlice'
 import { relationshipSlice } from './relationshipSlice'
 import { noteSlice } from './noteSlice'
+import { followUpSlice } from './followUpSlice'
 import { authSlice } from './authSlice'
 import { uiSlice } from './uiSlice'
 
@@ -10,6 +11,7 @@ export const store = configureStore({
     connections: connectionSlice.reducer,
     relationships: relationshipSlice.reducer,
     notes: noteSlice.reducer,
+    followUps: followUpSlice.reducer,
     auth: authSlice.reducer,
     ui: uiSlice.reducer,
   },
@@ -41,6 +43,7 @@ export function saveState(state: RootState) {
       payload.connections = { connections: state.connections.connections, favorites: state.connections.favorites }
       payload.relationships = state.relationships
       payload.notes = state.notes
+      payload.followUps = state.followUps
     }
     if (state.auth.token) {
       localStorage.setItem('nm_token', state.auth.token)

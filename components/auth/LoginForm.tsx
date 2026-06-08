@@ -94,8 +94,8 @@ export function LoginForm() {
         <div className="mt-4">
           <button
             type="button"
-            onClick={() => {
-              document.cookie = 'nm_guest=1; path=/; max-age=2592000'
+            onClick={async () => {
+              await fetch('/api/auth/guest', { method: 'POST' })
               dispatch(setGuest(true))
               router.push('/import')
             }}

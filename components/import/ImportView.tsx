@@ -2,9 +2,13 @@
 
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useDispatch } from 'react-redux'
-import { setConnections, mergeConnections } from '@/stores/connectionSlice'
+import { useDispatch, useSelector } from 'react-redux'
+import { setConnections, mergeConnections, selectConnections, selectFavorites, selectArchived } from '@/stores/connectionSlice'
+import { selectNotes } from '@/stores/noteSlice'
+import { selectFollowUps } from '@/stores/followUpSlice'
+import { selectRelationships, selectCustomTypes } from '@/stores/relationshipSlice'
 import { parseCSV, DEMO_CONNECTIONS } from '@/lib/data'
+import { buildExportJSON, buildExportCSV, downloadFile } from '@/lib/export'
 
 export function ImportView() {
   const dispatch = useDispatch()
@@ -12,6 +16,25 @@ export function ImportView() {
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  const connections = useSelector(selectConnections)
+  const favorites = useSelector(selectFavorites)
+  const archived = useSelector(selectArchived)
+  const notes = useSelector(selectNotes)
+  const followUps = useSelector(selectFollowUps)
+  const relationships = useSelector(selectRelationships)
+  const customTypes = useSelector(selectCustomTypes)
+
+  const exportData = { connections, favorites, archived, notes, followUps, relationships, customTypes }
+  const hasData = connections.length > 0
+
+  function handleExportJSON() {
+    downloadFile('networkme-export.json', buildExportJSON(exportData), 'application/json')
+  }
+
+  function handleExportCSV() {
+    downloadFile('networkme-export.csv', buildExportCSV(exportData), 'text/csv')
+  }
 
   function handleFile(file: File) {
     setError(null)
@@ -84,6 +107,34 @@ export function ImportView() {
 
       {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
       {success && <p className="mt-4 text-sm text-emerald-600 dark:text-emerald-400">{success}</p>}
+
+      <div className="flex items-center gap-4 my-6">
+        <hr className="flex-1 border-gray-200 dark:border-gray-700" />
+        <span className="text-xs text-gray-400">or</span>
+        <hr className="flex-1 border-gray-200 dark:border-gray-700" />
+      </div>
+
+      <div>
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Export your data</p>
+        <div className="flex gap-3">
+          <button
+            onClick={handleExportJSON}
+            disabled={!hasData}
+            title={!hasData ? 'No connections to export' : 'Download full backup as JSON'}
+            className="flex-1 py-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Export JSON
+          </button>
+          <button
+            onClick={handleExportCSV}
+            disabled={!hasData}
+            title={!hasData ? 'No connections to export' : 'Download connections as CSV'}
+            className="flex-1 py-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Export CSV
+          </button>
+        </div>
+      </div>
 
       <div className="flex items-center gap-4 my-6">
         <hr className="flex-1 border-gray-200 dark:border-gray-700" />

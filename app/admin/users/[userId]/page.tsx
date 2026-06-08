@@ -114,13 +114,23 @@ export default function AdminUserDetailPage({ params }: { params: Promise<{ user
                     key: 'actions',
                     label: '',
                     render: row => (
-                      <button
-                        onClick={() => handleRestore(row.id as number)}
-                        disabled={restoring === (row.id as number)}
-                        className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {restoring === (row.id as number) ? 'Restoring…' : 'Restore to this snapshot'}
-                      </button>
+                      <div className="flex items-center gap-4">
+                        <a
+                          href={`/admin/users/${userId}/snapshots/${row.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm font-medium text-neutral-500 dark:text-neutral-400 hover:underline"
+                        >
+                          View
+                        </a>
+                        <button
+                          onClick={() => handleRestore(row.id as number)}
+                          disabled={restoring === (row.id as number)}
+                          className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {restoring === (row.id as number) ? 'Restoring…' : 'Restore to this snapshot'}
+                        </button>
+                      </div>
                     ),
                   },
                 ]}

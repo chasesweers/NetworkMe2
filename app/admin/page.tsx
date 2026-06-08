@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { AdminTable } from '@/components/admin/AdminTable'
 import type { AdminUser } from '@/lib/types'
@@ -35,7 +35,7 @@ export default function AdminPage() {
             keyField="id"
             columns={[
               { key: 'email', label: 'Email' },
-              { key: 'displayName', label: 'Name', render: row => row.displayName ?? <span className="text-neutral-400">—</span> },
+              { key: 'displayName', label: 'Name', render: row => (row.displayName as string | null) ?? <span className="text-neutral-400">—</span> },
               {
                 key: 'createdAt',
                 label: 'Joined',

@@ -6,11 +6,13 @@ import { useSelector, useDispatch } from 'react-redux'
 import { selectTheme, setTheme, selectIsGuest, setGuest } from '@/stores/uiSlice'
 import { selectConnections, clearConnections } from '@/stores/connectionSlice'
 import { selectAuthUser, signOut } from '@/stores/authSlice'
+import { selectFollowUps } from '@/stores/followUpSlice'
 
 const TABS = [
   { href: '/import', label: 'Import' },
   { href: '/search', label: 'Search' },
   { href: '/graph', label: 'Graph' },
+  { href: '/reminders', label: 'Reminders' },
 ]
 
 const THEMES = ['system', 'light', 'dark'] as const
@@ -22,6 +24,9 @@ export function Nav() {
   const count = useSelector(selectConnections).length
   const user = useSelector(selectAuthUser)
   const isGuest = useSelector(selectIsGuest)
+  const followUps = useSelector(selectFollowUps)
+  const today = new Date().toISOString().slice(0, 10)
+  const overdueCount = Object.values(followUps).filter(f => f.dueAt < today).length
   const router = useRouter()
 
   async function handleSignOut() {
@@ -29,7 +34,7 @@ export function Nav() {
     dispatch(signOut())
     dispatch(clearConnections())
     dispatch(setGuest(false))
-    document.cookie = 'nm_guest=; path=/; max-age=0'
+    fetch('/api/auth/guest', { method: 'DELETE' })
     router.push('/login')
   }
 
@@ -47,13 +52,18 @@ export function Nav() {
             <Link
               key={href}
               href={href}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              className={`relative px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 pathname.startsWith(href)
                   ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
               }`}
             >
               {label}
+              {href === '/reminders' && overdueCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-0.5">
+                  {overdueCount}
+                </span>
+              )}
             </Link>
           ))}
         </div>

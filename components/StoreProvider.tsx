@@ -6,6 +6,7 @@ import { store, loadPersistedState, saveState } from '@/stores/index'
 import { setConnections, toggleFavorite, toggleArchive } from '@/stores/connectionSlice'
 import { addRelationship, addCustomType } from '@/stores/relationshipSlice'
 import { setNote } from '@/stores/noteSlice'
+import { setFollowUp } from '@/stores/followUpSlice'
 import { setTheme, completeOnboarding, setGuest } from '@/stores/uiSlice'
 import { setUser, setToken, setIsAdmin } from '@/stores/authSlice'
 import { getToken } from '@/lib/api'
@@ -54,6 +55,11 @@ async function hydrateFromServer(token: string) {
       store.dispatch(setNote({ key, text }))
     }
   }
+  if (data.followUps) {
+    for (const [key, fu] of Object.entries(data.followUps as Record<string, { dueAt: string; note: string }>)) {
+      store.dispatch(setFollowUp({ key, dueAt: fu.dueAt, note: fu.note }))
+    }
+  }
   if (data.archives?.length) {
     for (const key of data.archives as string[]) {
       store.dispatch(toggleArchive(key))
@@ -86,6 +92,7 @@ function scheduleSyncToServer() {
         relationships: state.relationships.relationships,
         customTypes: state.relationships.customTypes,
         notes: state.notes.notes,
+        followUps: state.followUps.followUps,
       }),
     })
   }, 1000)
@@ -105,7 +112,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (saved.ui?.onboardingComplete) store.dispatch(completeOnboarding())
     if (saved.ui?.isGuest) {
       store.dispatch(setGuest(true))
-      document.cookie = 'nm_guest=1; path=/; max-age=2592000'
+      fetch('/api/auth/guest', { method: 'POST' })
     }
 
     // Check for an existing token (stored by previous session)
@@ -138,6 +145,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (saved.notes?.notes) {
         for (const [key, text] of Object.entries(saved.notes.notes as Record<string, string>)) {
           store.dispatch(setNote({ key, text }))
+        }
+      }
+      if (saved.followUps?.followUps) {
+        for (const [key, fu] of Object.entries(saved.followUps.followUps as Record<string, { dueAt: string; note: string }>)) {
+          store.dispatch(setFollowUp({ key, dueAt: fu.dueAt, note: fu.note }))
         }
       }
     }

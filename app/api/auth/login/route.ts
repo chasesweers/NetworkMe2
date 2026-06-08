@@ -4,11 +4,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { getDb } from '@/lib/db'
 import { signToken, COOKIE_NAME } from '@/lib/jwt'
+import { checkRateLimit } from '@/lib/rateLimit'
+import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
 const schema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  password: z.string().min(8),
 })
 
 interface UserRow {
@@ -20,6 +22,15 @@ interface UserRow {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const { limited, retryAfterSecs } = checkRateLimit(ip)
+  if (limited) {
+    return NextResponse.json(
+      { error: 'Too many attempts. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSecs) } }
+    )
+  }
+
   const body = await req.json().catch(() => null)
   const parsed = schema.safeParse(body)
   if (!parsed.success) {
@@ -27,30 +38,32 @@ export async function POST(req: NextRequest) {
   }
 
   const { email, password } = parsed.data
-  const db = getDb()
 
-  const user = db.prepare('SELECT id, email, display_name, password_hash, is_admin FROM users WHERE email = ?').get(email) as UserRow | undefined
-  if (!user) {
-    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-  }
+  try {
+    const db = getDb()
+    const user = db.prepare('SELECT id, email, display_name, password_hash, is_admin FROM users WHERE email = ?').get(email) as UserRow | undefined
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+    }
 
-  const valid = await bcrypt.compare(password, user.password_hash)
-  if (!valid) {
-    return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
-  }
+    const valid = await bcrypt.compare(password, user.password_hash)
+    if (!valid) {
+      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
+    }
 
-  const token = await signToken({ userId: user.id, email: user.email, isAdmin: user.is_admin === 1 })
+    const token = await signToken({ userId: user.id, email: user.email, isAdmin: user.is_admin === 1 })
 
-  const res = NextResponse.json({
-    user: { id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin === 1 },
-    token,
-  })
-  res.cookies.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'strict',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7,
-    secure: process.env.NODE_ENV === 'production',
-  })
-  return res
+    const res = NextResponse.json({
+      user: { id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin === 1 },
+      token,
+    })
+    res.cookies.set(COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+      secure: process.env.NODE_ENV === 'production',
+    })
+    return res
+  } catch (err) { return serverError(err) }
 }

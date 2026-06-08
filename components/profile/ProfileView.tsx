@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSelector, useDispatch } from 'react-redux'
 import { selectConnections, selectIsFavorite, selectIsArchived, toggleFavorite, toggleArchive } from '@/stores/connectionSlice'
 import { selectNote, setNote } from '@/stores/noteSlice'
+import { selectFollowUp, setFollowUp, clearFollowUp } from '@/stores/followUpSlice'
 import { personKey, initials, avatarHue, formatDate } from '@/lib/data'
 import { RelationshipManager } from './RelationshipManager'
 
@@ -12,17 +13,34 @@ export function ProfileView({ personKey: key, from = '/search' }: { personKey: s
   const connections = useSelector(selectConnections)
   const connection = connections.find((c) => personKey(c) === key)
   const savedNote = useSelector(selectNote(key))
+  const savedFollowUp = useSelector(selectFollowUp(key))
   const isFavorite = useSelector(selectIsFavorite(key))
   const isArchived = useSelector(selectIsArchived(key))
   const dispatch = useDispatch()
 
   const [note, setNoteLocal] = useState(savedNote)
   const [saved, setSaved] = useState(false)
+  const [fuDate, setFuDate] = useState(savedFollowUp?.dueAt ?? '')
+  const [fuNote, setFuNote] = useState(savedFollowUp?.note ?? '')
+  const [fuSaved, setFuSaved] = useState(false)
 
   function save() {
     dispatch(setNote({ key, text: note }))
     setSaved(true)
     setTimeout(() => setSaved(false), 1500)
+  }
+
+  function saveFollowUp() {
+    if (!fuDate) return
+    dispatch(setFollowUp({ key, dueAt: fuDate, note: fuNote }))
+    setFuSaved(true)
+    setTimeout(() => setFuSaved(false), 1500)
+  }
+
+  function removeFollowUp() {
+    dispatch(clearFollowUp(key))
+    setFuDate('')
+    setFuNote('')
   }
 
   if (!connection) {
@@ -121,6 +139,48 @@ export function ProfileView({ personKey: key, from = '/search' }: { personKey: s
           >
             Save note
           </button>
+        </div>
+      </section>
+
+      {/* Follow-up reminder */}
+      <section>
+        <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Follow-up reminder</h2>
+        <div className="flex flex-col gap-2">
+          <input
+            type="date"
+            value={fuDate}
+            onChange={(e) => setFuDate(e.target.value)}
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <input
+            type="text"
+            value={fuNote}
+            onChange={(e) => setFuNote(e.target.value)}
+            placeholder="Reminder note (e.g. Ask about new job)…"
+            className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <span className={`text-xs transition-opacity ${fuSaved ? 'text-emerald-500 opacity-100' : 'opacity-0'}`}>
+            Saved
+          </span>
+          <div className="flex gap-2">
+            {savedFollowUp && (
+              <button
+                onClick={removeFollowUp}
+                className="text-xs px-3 py-1.5 text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              onClick={saveFollowUp}
+              disabled={!fuDate}
+              className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg transition-colors"
+            >
+              Save reminder
+            </button>
+          </div>
         </div>
       </section>
 

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/requireAuth'
 import { getDb } from '@/lib/db'
+import { serverError } from '@/lib/apiHelpers'
 
 interface UserRow { id: number; email: string; display_name: string | null; is_admin: number }
 
@@ -10,8 +11,10 @@ export async function GET(req: NextRequest) {
   let payload
   try { payload = await requireAuth(req) } catch (res) { return res as Response }
 
-  const user = getDb().prepare('SELECT id, email, display_name, is_admin FROM users WHERE id = ?').get(payload.userId) as UserRow | undefined
-  if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  try {
+    const user = getDb().prepare('SELECT id, email, display_name, is_admin FROM users WHERE id = ?').get(payload.userId) as UserRow | undefined
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
 
-  return NextResponse.json({ id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin === 1 })
+    return NextResponse.json({ id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin === 1 })
+  } catch (err) { return serverError(err) }
 }

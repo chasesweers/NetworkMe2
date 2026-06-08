@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/requireAuth'
 import { getDb } from '@/lib/db'
+import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
 const bodySchema = z.record(z.string(), z.string())
@@ -15,14 +16,16 @@ export async function PUT(req: NextRequest) {
   const parsed = bodySchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 })
 
-  const db = getDb()
-  const uid = payload.userId
+  try {
+    const db = getDb()
+    const uid = payload.userId
 
-  db.transaction(() => {
-    db.prepare('DELETE FROM notes WHERE user_id = ?').run(uid)
-    const insert = db.prepare('INSERT INTO notes (user_id, person_key, text) VALUES (?, ?, ?)')
-    for (const [key, text] of Object.entries(parsed.data)) insert.run(uid, key, text)
-  })()
+    db.transaction(() => {
+      db.prepare('DELETE FROM notes WHERE user_id = ?').run(uid)
+      const insert = db.prepare('INSERT INTO notes (user_id, person_key, text) VALUES (?, ?, ?)')
+      for (const [key, text] of Object.entries(parsed.data)) insert.run(uid, key, text)
+    })()
 
-  return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true })
+  } catch (err) { return serverError(err) }
 }
