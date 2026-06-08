@@ -74,8 +74,10 @@ describe('LoginForm', () => {
     fireEvent.change(getEmailInput(container), { target: { value: 'a@b.com' } })
     fireEvent.change(getPasswordInput(container), { target: { value: 'password123' } })
     fireEvent.submit(screen.getByRole('button', { name: /sign in/i }))
-    await waitFor(() => expect(store.getState().auth.user).not.toBeNull())
-    expect(localStorage.getItem('nm_token')).toBe('tok-abc')
+    await waitFor(() => {
+      expect(store.getState().auth.user).not.toBeNull()
+      expect(localStorage.getItem('nm_token')).toBe('tok-abc')
+    })
     expect(mockPush).toHaveBeenCalledWith('/search')
   })
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { loadPersistedState, saveState, store } from '@/stores/index'
+import { setUser, signOut } from '@/stores/authSlice'
 
 const PERSIST_KEY = 'nm_redux'
 
@@ -42,6 +43,8 @@ describe('saveState', () => {
   })
 
   it('omits data slices when authenticated (nm_token present)', () => {
+    // Real authenticated state: both token AND user present in store
+    store.dispatch(setUser({ id: 1, email: 'test@example.com' }))
     localStorage.setItem('nm_token', 'tok-abc')
     saveState(store.getState())
     const saved = JSON.parse(localStorage.getItem(PERSIST_KEY)!)
@@ -49,6 +52,7 @@ describe('saveState', () => {
     expect(saved).not.toHaveProperty('relationships')
     expect(saved).not.toHaveProperty('notes')
     expect(saved).not.toHaveProperty('followUps')
+    store.dispatch(signOut())
   })
 
   it('clears nm_token when there is no logged-in user', () => {
