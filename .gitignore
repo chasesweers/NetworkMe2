@@ -15,9 +15,8 @@
 /playwright-report
 /test-results
 
-# specs, tests, ADRs, and Claude instructions are local-only working documents
+# specs and ADRs are local-only working documents; tests are committed
 *.feature
-/tests/
 /docs/adr/
 CLAUDE.md
 
