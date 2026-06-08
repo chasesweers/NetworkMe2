@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
 import path from 'path'
 import fs from 'fs'
+import bcrypt from 'bcryptjs'
 
 const DB_PATH = path.join(process.cwd(), 'data', 'networkme.db')
 
@@ -79,7 +80,33 @@ function createDb(): Database.Database {
       UNIQUE(user_id)
     );
     CREATE INDEX IF NOT EXISTS idx_shared_graphs_user ON shared_graphs(user_id);
+
+    CREATE TABLE IF NOT EXISTS user_snapshots (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      payload    TEXT    NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_snapshots_user_created ON user_snapshots(user_id, created_at DESC);
   `)
+
+  // Guarded migration: add is_admin column if not present
+  const cols = db.prepare("PRAGMA table_info(users)").all() as { name: string }[]
+  if (!cols.some(c => c.name === 'is_admin')) {
+    db.exec("ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0")
+  }
+
+  // Seed admin account from env vars (idempotent)
+  const adminEmail = process.env.ADMIN_EMAIL
+  const adminPassword = process.env.ADMIN_PASSWORD
+  if (adminEmail && adminPassword) {
+    const existing = db.prepare('SELECT id FROM users WHERE is_admin = 1').get()
+    if (!existing) {
+      const hash = bcrypt.hashSync(adminPassword, 12)
+      db.prepare('INSERT OR IGNORE INTO users (email, display_name, password_hash, is_admin) VALUES (?, ?, ?, 1)')
+        .run(adminEmail, 'Admin', hash)
+    }
+  }
 
   return db
 }

@@ -7,7 +7,7 @@ import { setConnections, toggleFavorite, toggleArchive } from '@/stores/connecti
 import { addRelationship, addCustomType } from '@/stores/relationshipSlice'
 import { setNote } from '@/stores/noteSlice'
 import { setTheme, completeOnboarding, setGuest } from '@/stores/uiSlice'
-import { setUser, setToken } from '@/stores/authSlice'
+import { setUser, setToken, setIsAdmin } from '@/stores/authSlice'
 import { getToken } from '@/lib/api'
 import type { Connection, Relationship, RelationshipType } from '@/lib/types'
 import { personKey } from '@/lib/data'
@@ -20,6 +20,7 @@ async function restoreUser(token: string) {
   if (!res.ok) return
   const user = await res.json()
   store.dispatch(setUser(user))
+  store.dispatch(setIsAdmin(user.isAdmin === true))
 }
 
 /** Fetch all server data and populate Redux slices */
@@ -75,38 +76,18 @@ function scheduleSyncToServer() {
       Authorization: `Bearer ${token}`,
     }
 
-    await Promise.allSettled([
-      fetch('/api/connections', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(
-          state.connections.connections.map((c) => ({ ...c, personKey: personKey(c) }))
-        ),
+    await fetch('/api/sync', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        connections: state.connections.connections.map((c) => ({ ...c, personKey: personKey(c) })),
+        favorites: state.connections.favorites,
+        archives: state.connections.archived,
+        relationships: state.relationships.relationships,
+        customTypes: state.relationships.customTypes,
+        notes: state.notes.notes,
       }),
-      fetch('/api/favorites', {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(state.connections.favorites),
-      }),
-      fetch('/api/archives', {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(state.connections.archived),
-      }),
-      fetch('/api/relationships', {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify({
-          relationships: state.relationships.relationships,
-          customTypes: state.relationships.customTypes,
-        }),
-      }),
-      fetch('/api/notes', {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(state.notes.notes),
-      }),
-    ])
+    })
   }, 1000)
 }
 

@@ -16,6 +16,7 @@ interface UserRow {
   email: string
   display_name: string | null
   password_hash: string
+  is_admin: number
 }
 
 export async function POST(req: NextRequest) {
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   const { email, password } = parsed.data
   const db = getDb()
 
-  const user = db.prepare('SELECT id, email, display_name, password_hash FROM users WHERE email = ?').get(email) as UserRow | undefined
+  const user = db.prepare('SELECT id, email, display_name, password_hash, is_admin FROM users WHERE email = ?').get(email) as UserRow | undefined
   if (!user) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
   }
@@ -38,10 +39,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
   }
 
-  const token = await signToken({ userId: user.id, email: user.email })
+  const token = await signToken({ userId: user.id, email: user.email, isAdmin: user.is_admin === 1 })
 
   const res = NextResponse.json({
-    user: { id: user.id, email: user.email, displayName: user.display_name },
+    user: { id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin === 1 },
     token,
   })
   res.cookies.set(COOKIE_NAME, token, {

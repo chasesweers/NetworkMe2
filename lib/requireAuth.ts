@@ -1,5 +1,13 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken, COOKIE_NAME, type JWTPayload } from './jwt'
+
+export async function requireAdmin(req: NextRequest): Promise<JWTPayload> {
+  const payload = await requireAuth(req)
+  if (!payload.isAdmin) {
+    throw NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  return payload
+}
 
 export async function requireAuth(req: NextRequest): Promise<JWTPayload> {
   const authHeader = req.headers.get('authorization') ?? ''

@@ -25,6 +25,20 @@ export interface AuthUser {
   id: number
   email: string
   display_name?: string
+  isAdmin?: boolean
+}
+
+export interface AdminUser {
+  id: number
+  email: string
+  displayName: string | null
+  createdAt: number
+  connectionCount: number
+}
+
+export interface UserSnapshot {
+  id: number
+  createdAt: number
 }
 
 export const BUILTIN_RELATIONSHIP_TYPES: RelationshipType[] = [

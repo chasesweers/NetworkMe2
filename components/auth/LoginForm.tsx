@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { useDispatch } from 'react-redux'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { setUser, setToken } from '@/stores/authSlice'
+import { setUser, setToken, setIsAdmin } from '@/stores/authSlice'
 import { setGuest } from '@/stores/uiSlice'
 
 const schema = z.object({
@@ -40,6 +40,7 @@ export function LoginForm() {
     }
     dispatch(setUser(data.user))
     dispatch(setToken(data.token))
+    dispatch(setIsAdmin(data.user.isAdmin === true))
     dispatch(setGuest(false))
     document.cookie = 'nm_guest=; path=/; max-age=0'
     const from = searchParams.get('from') ?? '/search'

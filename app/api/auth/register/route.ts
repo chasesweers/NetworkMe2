@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     .run(email, displayName ?? null, passwordHash)
 
   const userId = result.lastInsertRowid as number
-  const token = await signToken({ userId, email })
+  const token = await signToken({ userId, email, isAdmin: false })
 
   const res = NextResponse.json({
     user: { id: userId, email, displayName: displayName ?? null },

@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from 'jose'
+import jwt from 'jsonwebtoken'
 
 const EXPIRES_IN = '7d'
 export const COOKIE_NAME = 'nm_token'
@@ -6,22 +6,24 @@ export const COOKIE_NAME = 'nm_token'
 export interface JWTPayload {
   userId: number
   email: string
+  isAdmin: boolean
 }
 
-function getSecret(): Uint8Array {
+function getSecret(): string {
   const secret = process.env.JWT_SECRET
   if (!secret) throw new Error('JWT_SECRET is not set')
-  return new TextEncoder().encode(secret)
+  return secret
 }
 
-export async function signToken(payload: JWTPayload): Promise<string> {
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setExpirationTime(EXPIRES_IN)
-    .sign(getSecret())
+export function signToken(payload: JWTPayload): string {
+  return jwt.sign(payload, getSecret(), { expiresIn: EXPIRES_IN })
 }
 
-export async function verifyToken(token: string): Promise<JWTPayload> {
-  const { payload } = await jwtVerify(token, getSecret())
-  return { userId: payload.userId as number, email: payload.email as string }
+export function verifyToken(token: string): JWTPayload {
+  const decoded = jwt.verify(token, getSecret()) as JWTPayload & { iat?: number; exp?: number }
+  return {
+    userId: decoded.userId,
+    email: decoded.email,
+    isAdmin: decoded.isAdmin ?? false,
+  }
 }
