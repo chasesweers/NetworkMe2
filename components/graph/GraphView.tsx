@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
-import { selectConnections } from '@/stores/connectionSlice'
+import { selectActiveConnections } from '@/stores/connectionSlice'
 import { selectAllRelationships, selectAllTypes } from '@/stores/relationshipSlice'
 import { personKey, initials } from '@/lib/data'
 import { buildEdges, buildNodes, physicsStep, shouldResetLayout, scaledCanvasSize, type GraphNode, type GraphEdge } from '@/lib/graphData'
@@ -34,7 +34,7 @@ interface GraphViewProps {
 export function GraphView({ initialConnections, initialRelationships, initialTypes, readOnly = false, controlsSlot }: GraphViewProps = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
-  const storeConnections = useSelector(selectConnections)
+  const storeConnections = useSelector(selectActiveConnections)
   const storeRelationships = useSelector(selectAllRelationships)
   const storeTypes = useSelector(selectAllTypes)
   const connections = initialConnections ?? storeConnections

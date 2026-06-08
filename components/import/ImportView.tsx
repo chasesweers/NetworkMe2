@@ -3,7 +3,7 @@
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useDispatch } from 'react-redux'
-import { setConnections } from '@/stores/connectionSlice'
+import { setConnections, mergeConnections } from '@/stores/connectionSlice'
 import { parseCSV, DEMO_CONNECTIONS } from '@/lib/data'
 
 export function ImportView() {
@@ -27,8 +27,8 @@ export function ImportView() {
         setError('No connections found. Make sure this is a LinkedIn connections CSV.')
         return
       }
-      dispatch(setConnections(connections))
-      setSuccess(`Imported ${connections.length} connections`)
+      dispatch(mergeConnections(connections))
+      setSuccess(`Added ${connections.length} connections to your network`)
       setTimeout(() => router.push('/search'), 1000)
     }
     reader.readAsText(file)

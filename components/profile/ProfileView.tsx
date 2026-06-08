@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useSelector, useDispatch } from 'react-redux'
-import { selectConnections, selectIsFavorite, toggleFavorite } from '@/stores/connectionSlice'
+import { selectConnections, selectIsFavorite, selectIsArchived, toggleFavorite, toggleArchive } from '@/stores/connectionSlice'
 import { selectNote, setNote } from '@/stores/noteSlice'
 import { personKey, initials, avatarHue, formatDate } from '@/lib/data'
 import { RelationshipManager } from './RelationshipManager'
@@ -13,6 +13,7 @@ export function ProfileView({ personKey: key, from = '/search' }: { personKey: s
   const connection = connections.find((c) => personKey(c) === key)
   const savedNote = useSelector(selectNote(key))
   const isFavorite = useSelector(selectIsFavorite(key))
+  const isArchived = useSelector(selectIsArchived(key))
   const dispatch = useDispatch()
 
   const [note, setNoteLocal] = useState(savedNote)
@@ -52,6 +53,20 @@ export function ProfileView({ personKey: key, from = '/search' }: { personKey: s
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{connection.name}</h1>
+            <button
+              onClick={() => dispatch(toggleArchive(key))}
+              aria-label={isArchived ? 'Unarchive connection' : 'Archive connection'}
+              title={isArchived ? 'Unarchive' : 'Archive'}
+              className={`transition-colors ${
+                isArchived
+                  ? 'text-indigo-500 hover:text-indigo-700'
+                  : 'text-gray-300 hover:text-indigo-500 dark:text-gray-600 dark:hover:text-indigo-400'
+              }`}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill={isArchived ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8l1 12a2 2 0 002 2h8a2 2 0 002-2L19 8M10 12v6m4-6v6" />
+              </svg>
+            </button>
             <button
               onClick={() => dispatch(toggleFavorite(key))}
               aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}

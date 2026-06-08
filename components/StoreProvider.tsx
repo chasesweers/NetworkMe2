@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { Provider } from 'react-redux'
 import { store, loadPersistedState, saveState } from '@/stores/index'
-import { setConnections, toggleFavorite } from '@/stores/connectionSlice'
+import { setConnections, toggleFavorite, toggleArchive } from '@/stores/connectionSlice'
 import { addRelationship, addCustomType } from '@/stores/relationshipSlice'
 import { setNote } from '@/stores/noteSlice'
 import { setTheme, completeOnboarding } from '@/stores/uiSlice'
@@ -53,6 +53,11 @@ async function hydrateFromServer(token: string) {
       store.dispatch(setNote({ key, text }))
     }
   }
+  if (data.archives?.length) {
+    for (const key of data.archives as string[]) {
+      store.dispatch(toggleArchive(key))
+    }
+  }
 }
 
 /** Debounced sync — pushes the current state to the server */
@@ -82,6 +87,11 @@ function scheduleSyncToServer() {
         method: 'PUT',
         headers,
         body: JSON.stringify(state.connections.favorites),
+      }),
+      fetch('/api/archives', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(state.connections.archived),
       }),
       fetch('/api/relationships', {
         method: 'PUT',

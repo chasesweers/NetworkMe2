@@ -7,11 +7,13 @@ interface Filters {
   company: string
   title: string
   favoritesOnly: boolean
+  archivedOnly: boolean
 }
 
 interface ConnectionState {
   connections: Connection[]
   favorites: string[]
+  archived: string[]
   searchQuery: string
   filters: Filters
 }
@@ -19,8 +21,9 @@ interface ConnectionState {
 const initialState: ConnectionState = {
   connections: [],
   favorites: [],
+  archived: [],
   searchQuery: '',
-  filters: { company: '', title: '', favoritesOnly: false },
+  filters: { company: '', title: '', favoritesOnly: false, archivedOnly: false },
 }
 
 export const connectionSlice = createSlice({
@@ -29,6 +32,13 @@ export const connectionSlice = createSlice({
   reducers: {
     setConnections(state, action: PayloadAction<Connection[]>) {
       state.connections = action.payload
+    },
+    mergeConnections(state, action: PayloadAction<Connection[]>) {
+      const map = new Map(state.connections.map(c => [personKey(c), c]))
+      for (const c of action.payload) {
+        map.set(personKey(c), c)
+      }
+      state.connections = Array.from(map.values())
     },
     clearConnections(state) {
       state.connections = []
@@ -39,6 +49,12 @@ export const connectionSlice = createSlice({
       if (idx === -1) state.favorites.push(key)
       else state.favorites.splice(idx, 1)
     },
+    toggleArchive(state, action: PayloadAction<string>) {
+      const key = action.payload
+      const idx = state.archived.indexOf(key)
+      if (idx === -1) state.archived.push(key)
+      else state.archived.splice(idx, 1)
+    },
     setSearchQuery(state, action: PayloadAction<string>) {
       state.searchQuery = action.payload
     },
@@ -48,24 +64,35 @@ export const connectionSlice = createSlice({
   },
 })
 
-export const { setConnections, clearConnections, toggleFavorite, setSearchQuery, setFilters } =
+export const { setConnections, mergeConnections, clearConnections, toggleFavorite, toggleArchive, setSearchQuery, setFilters } =
   connectionSlice.actions
 
 // Selectors
 export const selectConnections = (s: RootState) => s.connections.connections
 export const selectFavorites = (s: RootState) => s.connections.favorites
+export const selectArchived = (s: RootState) => s.connections.archived
 export const selectSearchQuery = (s: RootState) => s.connections.searchQuery
 export const selectFilters = (s: RootState) => s.connections.filters
+
+export const selectActiveConnections = createSelector(
+  selectConnections,
+  selectArchived,
+  (connections, archived) => connections.filter(c => !archived.includes(personKey(c)))
+)
 
 export const selectFilteredConnections = createSelector(
   selectConnections,
   selectFavorites,
+  selectArchived,
   selectSearchQuery,
   selectFilters,
-  (connections, favorites, searchQuery, filters) => {
+  (connections, favorites, archived, searchQuery, filters) => {
     const q = searchQuery.toLowerCase()
     return connections.filter((c) => {
-      if (filters.favoritesOnly && !favorites.includes(personKey(c))) return false
+      const key = personKey(c)
+      if (!filters.archivedOnly && archived.includes(key)) return false
+      if (filters.archivedOnly && !archived.includes(key)) return false
+      if (filters.favoritesOnly && !favorites.includes(key)) return false
       if (filters.company && !c.company.toLowerCase().includes(filters.company.toLowerCase())) return false
       if (filters.title && !c.title.toLowerCase().includes(filters.title.toLowerCase())) return false
       if (q) {
@@ -79,3 +106,6 @@ export const selectFilteredConnections = createSelector(
 
 export const selectIsFavorite = (key: string) => (s: RootState) =>
   s.connections.favorites.includes(key)
+
+export const selectIsArchived = (key: string) => (s: RootState) =>
+  s.connections.archived.includes(key)

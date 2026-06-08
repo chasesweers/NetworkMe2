@@ -66,6 +66,12 @@ function createDb(): Database.Database {
       PRIMARY KEY (user_id, person_key)
     );
 
+    CREATE TABLE IF NOT EXISTS archives (
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      person_key TEXT    NOT NULL,
+      PRIMARY KEY (user_id, person_key)
+    );
+
     CREATE TABLE IF NOT EXISTS shared_graphs (
       token      TEXT    PRIMARY KEY,
       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
