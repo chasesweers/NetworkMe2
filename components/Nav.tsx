@@ -6,6 +6,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { selectTheme, setTheme, selectIsGuest, setGuest } from '@/stores/uiSlice'
 import { selectConnections, clearConnections } from '@/stores/connectionSlice'
 import { selectAuthUser, signOut } from '@/stores/authSlice'
+import { clearToken } from '@/lib/api'
 import { selectFollowUps } from '@/stores/followUpSlice'
 
 const TABS = [
@@ -31,6 +32,7 @@ export function Nav() {
 
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
+    clearToken()
     dispatch(signOut())
     dispatch(clearConnections())
     dispatch(setGuest(false))

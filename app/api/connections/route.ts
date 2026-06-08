@@ -6,10 +6,16 @@ import { getDb } from '@/lib/db'
 import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
-const bodySchema = z.array(z.object({
-  name: z.string(), title: z.string(), company: z.string(),
-  connected: z.string(), url: z.string(), email: z.string(), personKey: z.string(),
-}))
+const connectionSchema = z.object({
+  name: z.string().max(200),
+  title: z.string().max(200),
+  company: z.string().max(200),
+  connected: z.string().max(50),
+  url: z.string().max(500),
+  email: z.string().max(254),
+  personKey: z.string().max(300),
+})
+const bodySchema = z.array(connectionSchema).max(20000)
 
 export async function POST(req: NextRequest) {
   let payload

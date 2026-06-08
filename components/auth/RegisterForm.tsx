@@ -7,8 +7,9 @@ import { z } from 'zod'
 import { useDispatch } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { setUser, setToken } from '@/stores/authSlice'
+import { setUser } from '@/stores/authSlice'
 import { setGuest } from '@/stores/uiSlice'
+import { setToken } from '@/lib/api'
 import { store } from '@/stores/index'
 import { personKey } from '@/lib/data'
 
@@ -80,8 +81,8 @@ export function RegisterForm() {
     // Push any guest data to the server before dispatching the token so
     // hydrateFromServer retrieves it on the next reload.
     await migrateGuestData(data.token)
+    setToken(data.token)
     dispatch(setUser(data.user))
-    dispatch(setToken(data.token))
     dispatch(setGuest(false))
     await fetch('/api/auth/guest', { method: 'DELETE' })
     router.push('/import')

@@ -7,8 +7,17 @@ import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
 const bodySchema = z.object({
-  relationships: z.array(z.object({ a: z.string(), b: z.string(), typeId: z.string(), createdAt: z.number() })),
-  customTypes: z.array(z.object({ id: z.string(), label: z.string(), color: z.string() })),
+  relationships: z.array(z.object({
+    a: z.string().max(300),
+    b: z.string().max(300),
+    typeId: z.string().max(100),
+    createdAt: z.number(),
+  })).max(50000),
+  customTypes: z.array(z.object({
+    id: z.string().max(100),
+    label: z.string().max(100),
+    color: z.string().max(20),
+  })).max(100),
 })
 
 export async function PUT(req: NextRequest) {

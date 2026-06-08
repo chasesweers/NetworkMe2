@@ -8,15 +8,29 @@ import { z } from 'zod'
 
 const syncBodySchema = z.object({
   connections: z.array(z.object({
-    name: z.string(), title: z.string(), company: z.string(),
-    connected: z.string(), url: z.string(), email: z.string(), personKey: z.string(),
-  })),
-  favorites: z.array(z.string()),
-  archives: z.array(z.string()),
-  relationships: z.array(z.object({ a: z.string(), b: z.string(), typeId: z.string(), createdAt: z.number() })),
-  customTypes: z.array(z.object({ id: z.string(), label: z.string(), color: z.string() })),
-  notes: z.record(z.string(), z.string()),
-  followUps: z.record(z.string(), z.object({ dueAt: z.string(), note: z.string() })).default({}),
+    name: z.string().max(200),
+    title: z.string().max(200),
+    company: z.string().max(200),
+    connected: z.string().max(50),
+    url: z.string().max(500),
+    email: z.string().max(254),
+    personKey: z.string().max(300),
+  })).max(20000),
+  favorites: z.array(z.string().max(300)).max(20000),
+  archives: z.array(z.string().max(300)).max(20000),
+  relationships: z.array(z.object({
+    a: z.string().max(300),
+    b: z.string().max(300),
+    typeId: z.string().max(100),
+    createdAt: z.number(),
+  })).max(50000),
+  customTypes: z.array(z.object({
+    id: z.string().max(100),
+    label: z.string().max(100),
+    color: z.string().max(20),
+  })).max(100),
+  notes: z.record(z.string().max(300), z.string().max(10000)),
+  followUps: z.record(z.string().max(300), z.object({ dueAt: z.string().max(50), note: z.string().max(1000) })).default({}),
 })
 
 export async function POST(req: NextRequest) {

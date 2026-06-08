@@ -7,8 +7,9 @@ import { z } from 'zod'
 import { useDispatch } from 'react-redux'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { setUser, setToken, setIsAdmin } from '@/stores/authSlice'
+import { setUser, setIsAdmin } from '@/stores/authSlice'
 import { setGuest } from '@/stores/uiSlice'
+import { setToken } from '@/lib/api'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -38,8 +39,8 @@ export function LoginForm() {
       setServerError(data.error ?? 'Something went wrong')
       return
     }
+    setToken(data.token)
     dispatch(setUser(data.user))
-    dispatch(setToken(data.token))
     dispatch(setIsAdmin(data.user.isAdmin === true))
     dispatch(setGuest(false))
     document.cookie = 'nm_guest=; path=/; max-age=0'

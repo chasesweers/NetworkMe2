@@ -9,12 +9,16 @@ import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  displayName: z.string().optional(),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(1024),
+  displayName: z.string().max(100).optional(),
 })
 
 export async function POST(req: NextRequest) {
+  if (process.env.OPEN_REGISTRATION !== 'true') {
+    return NextResponse.json({ error: 'Registration is closed' }, { status: 403 })
+  }
+
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
   const { limited, retryAfterSecs } = checkRateLimit(ip)
   if (limited) {

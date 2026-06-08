@@ -6,7 +6,7 @@ import { getDb } from '@/lib/db'
 import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
-const bodySchema = z.record(z.string(), z.object({ dueAt: z.string(), note: z.string() }))
+const bodySchema = z.record(z.string().max(300), z.object({ dueAt: z.string().max(50), note: z.string().max(1000) }))
 
 export async function PUT(req: NextRequest) {
   let payload

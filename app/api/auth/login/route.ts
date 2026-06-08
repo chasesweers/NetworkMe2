@@ -9,8 +9,8 @@ import { serverError } from '@/lib/apiHelpers'
 import { z } from 'zod'
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(1024),
 })
 
 interface UserRow {

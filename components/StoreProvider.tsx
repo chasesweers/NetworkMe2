@@ -8,7 +8,7 @@ import { addRelationship, addCustomType } from '@/stores/relationshipSlice'
 import { setNote } from '@/stores/noteSlice'
 import { setFollowUp } from '@/stores/followUpSlice'
 import { setTheme, completeOnboarding, setGuest } from '@/stores/uiSlice'
-import { setUser, setToken, setIsAdmin } from '@/stores/authSlice'
+import { setUser, setIsAdmin } from '@/stores/authSlice'
 import { getToken } from '@/lib/api'
 import type { Connection, Relationship, RelationshipType } from '@/lib/types'
 import { personKey } from '@/lib/data'
@@ -74,7 +74,7 @@ function scheduleSyncToServer() {
   if (syncTimer) clearTimeout(syncTimer)
   syncTimer = setTimeout(async () => {
     const state = store.getState()
-    const token = state.auth.token
+    const token = getToken()
     if (!token) return
 
     const headers = {
@@ -118,8 +118,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Check for an existing token (stored by previous session)
     const existingToken = getToken()
     if (existingToken) {
-      // Restore auth state from localStorage, then sync from server
-      store.dispatch(setToken(existingToken))
       restoreUser(existingToken).catch(console.error)
       hydrateFromServer(existingToken).catch(console.error)
     } else {
@@ -155,19 +153,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Subscribe to state changes
-    let prevToken: string | null = null
+    let prevUser: unknown = null
     store.subscribe(() => {
       const state = store.getState()
-      const token = state.auth.token
+      const user = state.auth.user
+      const token = getToken()
 
-      // Persist token and UI to localStorage always
       saveState(state)
 
-      // When token changes from null → value, a new login just happened — sync from server
-      if (token && token !== prevToken) {
-        hydrateFromServer(token).catch(console.error)
+      // When user changes from null → value, a new login just happened — sync from server
+      if (user && user !== prevUser) {
+        const t = token
+        if (t) hydrateFromServer(t).catch(console.error)
       }
-      prevToken = token
+      prevUser = user
 
       // If authenticated, debounce-push data changes to server
       if (token) {

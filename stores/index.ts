@@ -5,6 +5,7 @@ import { noteSlice } from './noteSlice'
 import { followUpSlice } from './followUpSlice'
 import { authSlice } from './authSlice'
 import { uiSlice } from './uiSlice'
+import { getToken, clearToken } from '@/lib/api'
 
 export const store = configureStore({
   reducer: {
@@ -35,9 +36,8 @@ export function loadPersistedState(): Partial<RootState> {
 
 export function saveState(state: RootState) {
   try {
-    const isAuthenticated = !!state.auth.token
+    const isAuthenticated = !!getToken()
     // When authenticated, server is the source of truth — don't persist data slices to localStorage.
-    // Always persist ui preferences and the token itself (via nm_token key used by lib/api.ts).
     const payload: Record<string, unknown> = { ui: state.ui }
     if (!isAuthenticated) {
       payload.connections = { connections: state.connections.connections, favorites: state.connections.favorites }
@@ -45,10 +45,8 @@ export function saveState(state: RootState) {
       payload.notes = state.notes
       payload.followUps = state.followUps
     }
-    if (state.auth.token) {
-      localStorage.setItem('nm_token', state.auth.token)
-    } else {
-      localStorage.removeItem('nm_token')
+    if (!state.auth.user) {
+      clearToken()
     }
     localStorage.setItem(PERSIST_KEY, JSON.stringify(payload))
   } catch {
