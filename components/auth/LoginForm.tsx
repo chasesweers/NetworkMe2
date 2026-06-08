@@ -8,6 +8,7 @@ import { useDispatch } from 'react-redux'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { setUser, setToken } from '@/stores/authSlice'
+import { setGuest } from '@/stores/uiSlice'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -39,6 +40,8 @@ export function LoginForm() {
     }
     dispatch(setUser(data.user))
     dispatch(setToken(data.token))
+    dispatch(setGuest(false))
+    document.cookie = 'nm_guest=; path=/; max-age=0'
     const from = searchParams.get('from') ?? '/search'
     router.push(from)
   }
@@ -87,7 +90,21 @@ export function LoginForm() {
           </button>
         </form>
 
-        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-6">
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              document.cookie = 'nm_guest=1; path=/; max-age=2592000'
+              dispatch(setGuest(true))
+              router.push('/import')
+            }}
+            className="w-full py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            Continue as guest
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
           No account?{' '}
           <Link href="/register" className="text-indigo-600 dark:text-indigo-400 hover:underline">
             Create one

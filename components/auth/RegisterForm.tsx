@@ -8,6 +8,9 @@ import { useDispatch } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { setUser, setToken } from '@/stores/authSlice'
+import { setGuest } from '@/stores/uiSlice'
+import { store } from '@/stores/index'
+import { personKey } from '@/lib/data'
 
 const schema = z.object({
   displayName: z.string().min(1, 'Name is required'),
@@ -15,6 +18,43 @@ const schema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 })
 type FormValues = z.infer<typeof schema>
+
+async function migrateGuestData(token: string) {
+  const state = store.getState()
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+  await Promise.allSettled([
+    fetch('/api/connections', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(
+        state.connections.connections.map((c) => ({ ...c, personKey: personKey(c) }))
+      ),
+    }),
+    fetch('/api/favorites', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(state.connections.favorites),
+    }),
+    fetch('/api/archives', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(state.connections.archived),
+    }),
+    fetch('/api/relationships', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        relationships: state.relationships.relationships,
+        customTypes: state.relationships.customTypes,
+      }),
+    }),
+    fetch('/api/notes', {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(state.notes.notes),
+    }),
+  ])
+}
 
 export function RegisterForm() {
   const dispatch = useDispatch()
@@ -37,8 +77,13 @@ export function RegisterForm() {
       setServerError(data.error ?? 'Something went wrong')
       return
     }
+    // Push any guest data to the server before dispatching the token so
+    // hydrateFromServer retrieves it on the next reload.
+    await migrateGuestData(data.token)
     dispatch(setUser(data.user))
     dispatch(setToken(data.token))
+    dispatch(setGuest(false))
+    document.cookie = 'nm_guest=; path=/; max-age=0'
     router.push('/import')
   }
 
@@ -97,7 +142,21 @@ export function RegisterForm() {
           </button>
         </form>
 
-        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-6">
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => {
+              document.cookie = 'nm_guest=1; path=/; max-age=2592000'
+              dispatch(setGuest(true))
+              router.push('/import')
+            }}
+            className="w-full py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            Continue as guest
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
           Already have an account?{' '}
           <Link href="/login" className="text-indigo-600 dark:text-indigo-400 hover:underline">
             Sign in

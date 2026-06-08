@@ -3,10 +3,9 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
-import { selectTheme, setTheme } from '@/stores/uiSlice'
-import { selectConnections } from '@/stores/connectionSlice'
+import { selectTheme, setTheme, selectIsGuest, setGuest } from '@/stores/uiSlice'
+import { selectConnections, clearConnections } from '@/stores/connectionSlice'
 import { selectAuthUser, signOut } from '@/stores/authSlice'
-import { clearConnections } from '@/stores/connectionSlice'
 
 const TABS = [
   { href: '/import', label: 'Import' },
@@ -22,14 +21,19 @@ export function Nav() {
   const theme = useSelector(selectTheme)
   const count = useSelector(selectConnections).length
   const user = useSelector(selectAuthUser)
+  const isGuest = useSelector(selectIsGuest)
   const router = useRouter()
 
   async function handleSignOut() {
     await fetch('/api/auth/logout', { method: 'POST' })
     dispatch(signOut())
     dispatch(clearConnections())
+    dispatch(setGuest(false))
+    document.cookie = 'nm_guest=; path=/; max-age=0'
     router.push('/login')
   }
+
+  const showTabs = user !== null || isGuest
 
   return (
     <nav className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 sticky top-0 z-40">
@@ -39,7 +43,7 @@ export function Nav() {
         </Link>
 
         <div className="flex items-center gap-1 flex-1">
-          {TABS.map(({ href, label }) => (
+          {showTabs && TABS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
@@ -69,6 +73,18 @@ export function Nav() {
             >
               Sign out
             </button>
+          </div>
+        )}
+
+        {!user && isGuest && (
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-xs text-gray-400 dark:text-gray-500">Guest</span>
+            <Link
+              href="/login"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              Sign in
+            </Link>
           </div>
         )}
 

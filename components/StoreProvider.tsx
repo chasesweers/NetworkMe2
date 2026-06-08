@@ -6,7 +6,7 @@ import { store, loadPersistedState, saveState } from '@/stores/index'
 import { setConnections, toggleFavorite, toggleArchive } from '@/stores/connectionSlice'
 import { addRelationship, addCustomType } from '@/stores/relationshipSlice'
 import { setNote } from '@/stores/noteSlice'
-import { setTheme, completeOnboarding } from '@/stores/uiSlice'
+import { setTheme, completeOnboarding, setGuest } from '@/stores/uiSlice'
 import { setUser, setToken } from '@/stores/authSlice'
 import { getToken } from '@/lib/api'
 import type { Connection, Relationship, RelationshipType } from '@/lib/types'
@@ -122,6 +122,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Always restore UI preferences from localStorage
     if (saved.ui?.theme) store.dispatch(setTheme(saved.ui.theme))
     if (saved.ui?.onboardingComplete) store.dispatch(completeOnboarding())
+    if (saved.ui?.isGuest) {
+      store.dispatch(setGuest(true))
+      document.cookie = 'nm_guest=1; path=/; max-age=2592000'
+    }
 
     // Check for an existing token (stored by previous session)
     const existingToken = getToken()

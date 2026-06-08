@@ -18,10 +18,11 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  const isGuest = req.cookies.get('nm_guest')?.value === '1'
   const isProtected = PROTECTED.some((p) => pathname.startsWith(p))
   const isAuthPage = AUTH_ONLY.some((p) => pathname.startsWith(p))
 
-  if (isProtected && !isAuthenticated) {
+  if (isProtected && !isAuthenticated && !isGuest) {
     const url = req.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('from', pathname)
