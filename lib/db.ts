@@ -65,6 +65,14 @@ function createDb(): Database.Database {
       text       TEXT    NOT NULL,
       PRIMARY KEY (user_id, person_key)
     );
+
+    CREATE TABLE IF NOT EXISTS shared_graphs (
+      token      TEXT    PRIMARY KEY,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      UNIQUE(user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_shared_graphs_user ON shared_graphs(user_id);
   `)
 
   return db

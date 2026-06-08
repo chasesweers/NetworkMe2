@@ -8,6 +8,7 @@ import { selectAllRelationships, selectAllTypes } from '@/stores/relationshipSli
 import { personKey, initials } from '@/lib/data'
 import { buildEdges, buildNodes, physicsStep, shouldResetLayout, scaledCanvasSize, type GraphNode, type GraphEdge } from '@/lib/graphData'
 import Link from 'next/link'
+import type { Connection, Relationship, RelationshipType } from '@/lib/types'
 
 // Re-export types under local aliases for internal use
 type Node = GraphNode
@@ -22,12 +23,23 @@ const NODE_R = 22
  */
 let positionCache: Node[] = []
 
-export function GraphView() {
+interface GraphViewProps {
+  initialConnections?: Connection[]
+  initialRelationships?: Relationship[]
+  initialTypes?: RelationshipType[]
+  readOnly?: boolean
+  controlsSlot?: React.ReactNode
+}
+
+export function GraphView({ initialConnections, initialRelationships, initialTypes, readOnly = false, controlsSlot }: GraphViewProps = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const router = useRouter()
-  const connections = useSelector(selectConnections)
-  const relationships = useSelector(selectAllRelationships)
-  const allTypes = useSelector(selectAllTypes)
+  const storeConnections = useSelector(selectConnections)
+  const storeRelationships = useSelector(selectAllRelationships)
+  const storeTypes = useSelector(selectAllTypes)
+  const connections = initialConnections ?? storeConnections
+  const relationships = initialRelationships ?? storeRelationships
+  const allTypes = initialTypes ?? storeTypes
 
   const nodesRef = useRef<Node[]>([])
   const edgesRef = useRef<Edge[]>([])
@@ -240,6 +252,7 @@ export function GraphView() {
   function onMouseUp() { isPanningRef.current = false }
 
   function onClick(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (readOnly) return
     const node = getNodeAt(e.clientX, e.clientY)
     if (node) router.push(`/profile/${node.key}?from=/graph`)
   }
@@ -269,19 +282,8 @@ export function GraphView() {
     setShowSuggestions(false)
   }
 
-  if (connections.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-3.5rem)] text-center">
-        <div>
-          <p className="text-gray-400 dark:text-gray-600 mb-3">No connections to visualize.</p>
-          <Link href="/import" className="text-indigo-500 hover:underline text-sm">Import connections</Link>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="relative w-full h-[calc(100vh-3.5rem)]">
+    <div className="relative w-full h-full">
       <canvas
         ref={canvasRef}
         className="w-full h-full cursor-grab active:cursor-grabbing"
@@ -292,6 +294,15 @@ export function GraphView() {
         onClick={onClick}
         onWheel={onWheel}
       />
+
+      {connections.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
+          <div className="pointer-events-auto">
+            <p className="text-gray-400 dark:text-gray-600 mb-3">No connections to visualize.</p>
+            <Link href="/import" className="text-indigo-500 hover:underline text-sm">Import connections</Link>
+          </div>
+        </div>
+      )}
 
       <div className="absolute top-4 left-4 z-20 w-56">
         <input
@@ -328,7 +339,7 @@ export function GraphView() {
           <p className="font-medium text-gray-900 dark:text-gray-100">{tooltip.conn.name}</p>
           {tooltip.conn.title && <p className="text-gray-500 dark:text-gray-400 text-xs">{tooltip.conn.title}</p>}
           {tooltip.conn.company && <p className="text-gray-400 dark:text-gray-600 text-xs">{tooltip.conn.company}</p>}
-          <p className="text-indigo-500 text-xs mt-1">Click to view profile</p>
+          {!readOnly && <p className="text-indigo-500 text-xs mt-1">Click to view profile</p>}
         </div>
       )}
 
@@ -372,6 +383,7 @@ export function GraphView() {
         >
           Refresh graph
         </button>
+        {controlsSlot}
       </div>
     </div>
   )
