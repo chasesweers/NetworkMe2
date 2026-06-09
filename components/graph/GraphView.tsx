@@ -49,11 +49,15 @@ export function GraphView({ initialConnections, initialRelationships, initialTyp
   const [tooltip, setTooltip] = useState<{ x: number; y: number; conn: (typeof connections)[0] } | null>(null)
   const isPanningRef = useRef(false)
   const lastPanRef = useRef({ x: 0, y: 0 })
+  const touchStartPosRef = useRef({ x: 0, y: 0 })
+  const lastPinchDistRef = useRef(0)
+  const isTouchPanningRef = useRef(false)
   const [filterTypeId, setFilterTypeId] = useState<string>('all')
   const [showLabels, setShowLabels] = useState(true)
   const [pinnedKey, setPinnedKey] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [showControls, setShowControls] = useState(false)
   const prevRelCountRef = useRef(relationships.length)
 
   // Reset layout when a new relationship is added
@@ -205,6 +209,105 @@ export function GraphView({ initialConnections, initialRelationships, initialTyp
     return () => ro.disconnect()
   }, [])
 
+  // ─── Touch support ───────────────────────────────────────────────────────────
+  // Native listeners are required so we can call preventDefault() with
+  // { passive: false }, preventing the browser's built-in scroll and pinch-zoom
+  // from fighting our canvas interactions.
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    function getTouchDist(t: TouchList) {
+      const dx = t[0].clientX - t[1].clientX
+      const dy = t[0].clientY - t[1].clientY
+      return Math.sqrt(dx * dx + dy * dy)
+    }
+
+    function getTouchMid(t: TouchList) {
+      return {
+        x: (t[0].clientX + t[1].clientX) / 2,
+        y: (t[0].clientY + t[1].clientY) / 2,
+      }
+    }
+
+    function getNodeAtPoint(clientX: number, clientY: number): Node | null {
+      const rect = canvas!.getBoundingClientRect()
+      const { x: tx, y: ty, scale } = transformRef.current
+      const mx = (clientX - rect.left - tx) / scale
+      const my = (clientY - rect.top - ty) / scale
+      for (const n of nodesRef.current) {
+        const dx = n.x - mx; const dy = n.y - my
+        if (dx * dx + dy * dy <= NODE_R * NODE_R) return n
+      }
+      return null
+    }
+
+    function onTouchStart(e: TouchEvent) {
+      e.preventDefault()
+      if (e.touches.length === 1) {
+        const t = e.touches[0]
+        touchStartPosRef.current = { x: t.clientX, y: t.clientY }
+        lastPanRef.current = { x: t.clientX, y: t.clientY }
+        isTouchPanningRef.current = !getNodeAtPoint(t.clientX, t.clientY)
+      } else if (e.touches.length === 2) {
+        lastPinchDistRef.current = getTouchDist(e.touches)
+        isTouchPanningRef.current = false
+      }
+    }
+
+    function onTouchMove(e: TouchEvent) {
+      e.preventDefault()
+      if (e.touches.length === 1 && isTouchPanningRef.current) {
+        const t = e.touches[0]
+        transformRef.current.x += t.clientX - lastPanRef.current.x
+        transformRef.current.y += t.clientY - lastPanRef.current.y
+        lastPanRef.current = { x: t.clientX, y: t.clientY }
+      } else if (e.touches.length === 2) {
+        const dist = getTouchDist(e.touches)
+        const factor = lastPinchDistRef.current > 0 ? dist / lastPinchDistRef.current : 1
+        lastPinchDistRef.current = dist
+
+        const mid = getTouchMid(e.touches)
+        const rect = canvas!.getBoundingClientRect()
+        const mx = mid.x - rect.left
+        const my = mid.y - rect.top
+        const { x: tx, y: ty, scale } = transformRef.current
+        transformRef.current = {
+          scale: Math.max(0.2, Math.min(5, scale * factor)),
+          x: mx - (mx - tx) * factor,
+          y: my - (my - ty) * factor,
+        }
+      }
+    }
+
+    function onTouchEnd(e: TouchEvent) {
+      e.preventDefault()
+      // Single tap: finger lifted with no other touches remaining
+      if (e.changedTouches.length === 1 && e.touches.length === 0) {
+        const t = e.changedTouches[0]
+        const dx = t.clientX - touchStartPosRef.current.x
+        const dy = t.clientY - touchStartPosRef.current.y
+        const moved = Math.sqrt(dx * dx + dy * dy)
+        if (moved < 10) {
+          const node = getNodeAtPoint(t.clientX, t.clientY)
+          if (node && !readOnly) {
+            router.push(`/profile/${node.key}?from=/graph`)
+          }
+        }
+      }
+      isTouchPanningRef.current = false
+    }
+
+    canvas.addEventListener('touchstart', onTouchStart, { passive: false })
+    canvas.addEventListener('touchmove',  onTouchMove,  { passive: false })
+    canvas.addEventListener('touchend',   onTouchEnd,   { passive: false })
+    return () => {
+      canvas.removeEventListener('touchstart', onTouchStart)
+      canvas.removeEventListener('touchmove',  onTouchMove)
+      canvas.removeEventListener('touchend',   onTouchEnd)
+    }
+  }, [readOnly, router])
+
   function getNodeAt(clientX: number, clientY: number): Node | null {
     const canvas = canvasRef.current
     if (!canvas) return null
@@ -286,7 +389,7 @@ export function GraphView({ initialConnections, initialRelationships, initialTyp
     <div className="relative w-full h-full">
       <canvas
         ref={canvasRef}
-        className="w-full h-full cursor-grab active:cursor-grabbing"
+        className="w-full h-full cursor-grab active:cursor-grabbing touch-none"
         onMouseMove={onMouseMove}
         onMouseDown={onMouseDown}
         onMouseUp={onMouseUp}
@@ -304,7 +407,7 @@ export function GraphView({ initialConnections, initialRelationships, initialTyp
         </div>
       )}
 
-      <div className="absolute top-4 left-4 z-20 w-56">
+      <div className="absolute top-4 left-4 right-16 z-20 sm:right-auto sm:w-56">
         <input
           type="text"
           placeholder="Search connections…"
@@ -312,7 +415,7 @@ export function GraphView({ initialConnections, initialRelationships, initialTyp
           onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); if (!e.target.value) setPinnedKey(null) }}
           onFocus={() => setShowSuggestions(true)}
           onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-          className="w-full text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full text-base sm:text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm outline-none focus:ring-2 focus:ring-indigo-400"
         />
         {showSuggestions && suggestions.length > 0 && (
           <ul className="mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg overflow-hidden">
@@ -343,7 +446,54 @@ export function GraphView({ initialConnections, initialRelationships, initialTyp
         </div>
       )}
 
-      <div className="absolute top-4 right-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-3 flex flex-col gap-3 min-w-44">
+      {/* Mobile controls toggle — visible only below sm: */}
+      <button
+        className="sm:hidden absolute top-4 right-4 z-20 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-2.5"
+        onClick={() => setShowControls(v => !v)}
+        aria-label="Toggle graph controls"
+      >
+        <svg className="w-4 h-4 text-gray-600 dark:text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" d="M4 6h16M4 12h10M4 18h6" />
+        </svg>
+      </button>
+
+      {/* Mobile bottom sheet — visible only below sm: */}
+      {showControls && (
+        <div className="sm:hidden absolute bottom-0 left-0 right-0 z-20 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 rounded-t-2xl shadow-lg p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Graph controls</span>
+            <button onClick={() => setShowControls(false)} aria-label="Close controls" className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Filter by relationship</label>
+          <select value={filterTypeId} onChange={(e) => setFilterTypeId(e.target.value)}
+            className="text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800">
+            <option value="all">All types</option>
+            {allTypes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+            <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} className="rounded" />
+            Show labels
+          </label>
+          <button onClick={() => { transformRef.current = { x: 0, y: 0, scale: 1 }; setShowControls(false) }}
+            className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left">
+            Reset zoom
+          </button>
+          <button
+            onClick={() => { positionCache = []; const W = canvasRef.current?.offsetWidth ?? 800; const H = canvasRef.current?.offsetHeight ?? 600; nodesRef.current = buildNodes(connections, [], W, H); setShowControls(false) }}
+            className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
+            aria-label="Refresh graph">
+            Refresh graph
+          </button>
+          {controlsSlot}
+        </div>
+      )}
+
+      {/* Desktop controls panel — hidden below sm: */}
+      <div className="hidden sm:flex absolute top-4 right-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-3 flex-col gap-3 min-w-44">
         <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Filter by relationship</label>
         <select
           value={filterTypeId}
@@ -353,34 +503,18 @@ export function GraphView({ initialConnections, initialRelationships, initialTyp
           <option value="all">All types</option>
           {allTypes.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
         </select>
-
         <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showLabels}
-            onChange={(e) => setShowLabels(e.target.checked)}
-            className="rounded"
-          />
+          <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} className="rounded" />
           Show labels
         </label>
-
-        <button
-          onClick={() => { transformRef.current = { x: 0, y: 0, scale: 1 } }}
-          className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
-        >
+        <button onClick={() => { transformRef.current = { x: 0, y: 0, scale: 1 } }}
+          className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left">
           Reset zoom
         </button>
-
         <button
-          onClick={() => {
-            positionCache = []
-            const W = canvasRef.current?.offsetWidth ?? 800
-            const H = canvasRef.current?.offsetHeight ?? 600
-            nodesRef.current = buildNodes(connections, [], W, H)
-          }}
+          onClick={() => { positionCache = []; const W = canvasRef.current?.offsetWidth ?? 800; const H = canvasRef.current?.offsetHeight ?? 600; nodesRef.current = buildNodes(connections, [], W, H) }}
           className="text-xs text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
-          aria-label="Refresh graph"
-        >
+          aria-label="Refresh graph">
           Refresh graph
         </button>
         {controlsSlot}

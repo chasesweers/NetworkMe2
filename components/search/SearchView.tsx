@@ -35,12 +35,12 @@ export function SearchView() {
           placeholder="Search connections…"
           value={searchQuery}
           onChange={(e) => dispatch(setSearchQuery(e.target.value))}
-          className="flex-1 min-w-48 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="flex-1 min-w-0 w-full sm:min-w-48 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         <select
           value={filters.company}
           onChange={(e) => dispatch(setFilters({ company: e.target.value }))}
-          className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-sm"
+          className="px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-base sm:text-sm"
         >
           <option value="">All companies</option>
           {companies.map((c) => <option key={c} value={c}>{c}</option>)}

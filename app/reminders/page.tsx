@@ -47,8 +47,12 @@ export default function RemindersPage() {
           {item.note && (
             <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5 truncate">{item.note}</p>
           )}
+          {/* Date shown inline on mobile, hidden on sm+ where the side column takes over */}
+          <p className={`text-xs font-medium mt-0.5 sm:hidden ${item.dueAt < today ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
+            {formatDue(item.dueAt)}
+          </p>
         </div>
-        <div className="text-right shrink-0">
+        <div className="text-right shrink-0 hidden sm:block">
           <p className={`text-xs font-medium ${item.dueAt < today ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
             {formatDue(item.dueAt)}
           </p>

@@ -149,7 +149,7 @@ export function RelationshipManager({ currentKey }: Props) {
               <button
                 onClick={() => handleRemove(r.a, r.b)}
                 aria-label="Remove relationship"
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500 dark:text-gray-700 dark:hover:text-red-400 ml-auto shrink-0"
+                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500 dark:text-gray-700 dark:hover:text-red-400 ml-auto shrink-0"
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                   <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />

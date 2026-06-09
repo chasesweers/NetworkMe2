@@ -6,10 +6,11 @@ import { authSlice } from '@/stores/authSlice'
 import { uiSlice } from '@/stores/uiSlice'
 import { LoginForm } from '@/components/auth/LoginForm'
 
-const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }))
+// LoginForm uses window.location.href for navigation (not router.push)
+// so we mock that instead.
+const { mockLocationAssign } = vi.hoisted(() => ({ mockLocationAssign: vi.fn() }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
   useSearchParams: () => ({ get: () => null }),
 }))
 
@@ -23,7 +24,6 @@ function renderForm() {
   return { store, container: result.container }
 }
 
-// LoginForm labels lack htmlFor, so we query inputs by type directly
 function getEmailInput(container: HTMLElement) {
   return container.querySelector('input[type="email"]') as HTMLInputElement
 }
@@ -32,9 +32,14 @@ function getPasswordInput(container: HTMLElement) {
 }
 
 beforeEach(() => {
-  mockPush.mockClear()
+  mockLocationAssign.mockClear()
   vi.restoreAllMocks()
   localStorage.clear()
+  // Stub window.location.href setter
+  Object.defineProperty(window, 'location', {
+    value: { href: '' },
+    writable: true,
+  })
 })
 
 describe('LoginForm', () => {
@@ -78,10 +83,9 @@ describe('LoginForm', () => {
       expect(store.getState().auth.user).not.toBeNull()
       expect(localStorage.getItem('nm_token')).toBe('tok-abc')
     })
-    expect(mockPush).toHaveBeenCalledWith('/search')
   })
 
-  it('redirects to the "from" param after login', async () => {
+  it('navigates to /search after successful login', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(JSON.stringify({ token: 't', user: { id: 1, email: 'a@b.com', isAdmin: false } }), { status: 200 })
     )
@@ -89,6 +93,15 @@ describe('LoginForm', () => {
     fireEvent.change(getEmailInput(container), { target: { value: 'a@b.com' } })
     fireEvent.change(getPasswordInput(container), { target: { value: 'password123' } })
     fireEvent.submit(screen.getByRole('button', { name: /sign in/i }))
-    await waitFor(() => expect(mockPush).toHaveBeenCalled())
+    await waitFor(() => expect(window.location.href).toBe('/search'))
+  })
+
+  it('guest button calls the guest API and navigates to /import', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 })
+    )
+    renderForm()
+    fireEvent.click(screen.getByRole('button', { name: /continue as guest/i }))
+    await waitFor(() => expect(window.location.href).toBe('/import'))
   })
 })

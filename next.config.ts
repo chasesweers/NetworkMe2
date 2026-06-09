@@ -18,7 +18,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob:",
       "font-src 'self'",
-      "connect-src 'self'",
+      process.env.NODE_ENV === 'development' ? "connect-src 'self' ws: wss: http: https:" : "connect-src 'self'",
       "frame-ancestors 'self'",
     ].join("; "),
   },
@@ -26,6 +26,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   async headers() {
+    if (process.env.NODE_ENV === 'development') return []
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
 };

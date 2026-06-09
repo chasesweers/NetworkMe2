@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useDispatch } from 'react-redux'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { setUser, setIsAdmin } from '@/stores/authSlice'
 import { setGuest } from '@/stores/uiSlice'
@@ -19,7 +19,6 @@ type FormValues = z.infer<typeof schema>
 
 export function LoginForm() {
   const dispatch = useDispatch()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -43,9 +42,10 @@ export function LoginForm() {
     dispatch(setUser(data.user))
     dispatch(setIsAdmin(data.user.isAdmin === true))
     dispatch(setGuest(false))
+    document.cookie = 'nm_authed=1; path=/; max-age=604800; samesite=lax'
     document.cookie = 'nm_guest=; path=/; max-age=0'
     const from = searchParams.get('from') ?? '/search'
-    router.push(from)
+    window.location.href = from
   }
 
   return (
@@ -98,7 +98,7 @@ export function LoginForm() {
             onClick={async () => {
               await fetch('/api/auth/guest', { method: 'POST' })
               dispatch(setGuest(true))
-              router.push('/import')
+              window.location.href = '/import'
             }}
             className="w-full py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >

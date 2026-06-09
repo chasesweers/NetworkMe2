@@ -118,6 +118,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Check for an existing token (stored by previous session)
     const existingToken = getToken()
     if (existingToken) {
+      document.cookie = 'nm_authed=1; path=/; max-age=604800; samesite=lax'
       restoreUser(existingToken).catch(console.error)
       hydrateFromServer(existingToken).catch(console.error)
     } else {

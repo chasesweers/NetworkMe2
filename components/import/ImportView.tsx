@@ -85,7 +85,7 @@ export function ImportView() {
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={onDrop}
-        className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-12 cursor-pointer transition-colors ${
+        className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-6 sm:p-12 cursor-pointer transition-colors ${
           isDragging
             ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950'
             : 'border-gray-200 dark:border-gray-700 hover:border-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-900'

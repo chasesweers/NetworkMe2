@@ -12,7 +12,10 @@ export function middleware(req: NextRequest) {
   // Decode without verifying — full cryptographic verification happens in each API route.
   // Middleware is for routing only; it does not grant data access.
   const tokenPayload = token ? decodeTokenPayload(token) : null
-  const isAuthenticated = tokenPayload !== null
+  // nm_authed is a client-settable fallback for environments where the httpOnly
+  // cookie can't be stored (e.g. iOS Safari over HTTP with an IP address).
+  // This cookie carries no sensitive data — actual auth happens in API routes.
+  const isAuthenticated = tokenPayload !== null || req.cookies.get('nm_authed')?.value === '1'
   const isGuest = req.cookies.get('nm_guest')?.value === '1'
 
   const isProtected = PROTECTED.some((p) => pathname.startsWith(p))

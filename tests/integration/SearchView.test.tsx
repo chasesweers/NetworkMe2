@@ -88,4 +88,10 @@ describe('SearchView', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /add to favorites/i })[0])
     expect(store.getState().connections.favorites).toHaveLength(1)
   })
+
+  it('show archived button toggles the archived filter', () => {
+    const store = renderSearch()
+    fireEvent.click(screen.getByRole('button', { name: /show archived/i }))
+    expect(store.getState().connections.filters?.archivedOnly ?? true).toBeTruthy()
+  })
 })
