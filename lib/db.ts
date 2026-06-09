@@ -96,6 +96,15 @@ function createDb(): Database.Database {
       payload    TEXT    NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_snapshots_user_created ON user_snapshots(user_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT    NOT NULL,
+      expires_at INTEGER NOT NULL,
+      used       INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE INDEX IF NOT EXISTS idx_prt_token_hash ON password_reset_tokens(token_hash);
   `)
 
   // Guarded migration: add is_admin column if not present

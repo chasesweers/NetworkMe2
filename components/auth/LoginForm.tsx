@@ -107,6 +107,10 @@ export function LoginForm() {
         </div>
 
         <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-4">
+          <Link href="/forgot-password" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+            Forgot password?
+          </Link>
+          {' · '}
           No account?{' '}
           <Link href="/register" className="text-indigo-600 dark:text-indigo-400 hover:underline">
             Create one
